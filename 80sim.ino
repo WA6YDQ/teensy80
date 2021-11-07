@@ -9,26 +9,41 @@
 /* define the system */
 // #define TESTCODE_LOCAL     // uncomment to pre-load a test routine
 // #define TESTCODE_DISK      // uncomment to pre-load LOAD.COM from the SD card 
+//#define BANKDEF              // use banked memory if un-commented
 
 #define DEBUG 0
-#define RAMSIZE 65536
+#define RAMSIZE 262144          // was 65536
 #define DEBOUNCE 80             // msec delay for debouncing a switch
 #define SERIAL1_PORT_SPEED 9600 // baud rate of db-9 serial port
-#define Console Serial
+#define Console Serial          // allow us to change to Serial1 (or whatever) later
+#define Printer Serial2         // printer rs-232 port
+#define PrinterBaudRate 300
+
+/* for banked memory, re-define the PC */
+#define PCB PC>32768 ? PC : (((32768*BANK)+PC) & 0x3fff)
 
 // hardware (lights, switches)
 #define ABORTPIN 2      // momentary switch input for INT switch
 #define RESETPIN 3      // momentary switch input for RESET switch
-#define DISKLED  6      // LED output (active 1) when disk activity happening
-#define IOLED    7      // LED output (active 1) when any IO happening
-#define ACTLED   9      // LED output (active 1) when some routine needs to alert the user
-#define INTPIN   8      // Interrupt pin for 8080 (depends on INTE)
+#define LOADPIN  4      // Pressing starts file transfer from remote device
+#define INTPIN   9      // Interrupt pin for 8080 (depends on INTE)
 
+#define RUNLED  5      // LED output (active 1) when disk activity happening
+#define HALTLED 6      // LED output (active 1) when any IO happening
+#define ATTNLED 30     // LED output (active 1) when some routine needs to alert the user
+
+#define LINE31 31       // input line 0x13
+#define LINE32 32       // input line 0x12
+#define LINE33 33       // output line 0x14
+#define LINE34 34       // output line 0x15
+
+#define TONEPIN 35      // output tone, addr 0x18 (off is 0x19)
 
 
 /* defines for SD card on teensy 4.1 */
 #include <SD.h>
 #include <SPI.h>
+#include <TimeLib.h>
 const int chipSelect = BUILTIN_SDCARD;
 File loadFile;
 
@@ -37,13 +52,29 @@ File loadFile;
 #include "decoder.h"        // op code decoding
 #include "monitor.h"        // abort monitor routines
 
+
+/* setup PSRAM memory */
+EXTMEM char PStest[80];
+
+
 /* define the registers */
-uint16_t    PC, A, BC, DE, HL, StackP, temp, carry, hi, lo;
+#ifdef BANKDEF 
+uint32_t PC;
+#endif
+#ifndef BANKDEF 
+uint16_t PC;
+#endif
+
+uint16_t    A, BC, DE, HL, StackP, temp, carry, hi, lo;
 uint8_t     OP;
 bool        C, Z, P, AC, S, INTE;
 
-/* define main memory */
+/* define 8 bit main memory */
 uint8_t *RAM;
+uint8_t BANK = 0;       // 0-7, value * 32768 added memory pointer, set by output port 0xfe=0-7
+                        // use PC = (PC<32768) ? PC : (32768*BANK)+PC to determine RAM address
+                        // banks only apply to upper part of memory (32768-65535). 0-32767 are unchanged.
+
 
 /* gp variables */
 int FLAG = 0;
@@ -319,43 +350,133 @@ void reset() {      // reset the processor
     PC = 0;
     
     /* turn off indicators */
-    digitalWrite(DISKLED,0);
-    digitalWrite(IOLED,0);
-    digitalWrite(ACTLED,0);
+    digitalWrite(RUNLED,0);
+    digitalWrite(HALTLED,0);
+    digitalWrite(ATTNLED,0);
 
     return;
 }
 
+void xmodem() {   /* load a file over the serial line, save to SD card */
+    char ch, block[135], checksum, filename[24];
+    uint8_t counter = 0;
+    #define EOT 0x04
+    #define NAK 0x15
+    #define ACK 0x06
+    #define SOH 0x01
+    
+    /* this routine is an XMODEM receiver */
+
+    Console.print("\r\nEnter filename: ");      // ask user for filename to save data to
+    while (!Console.available()) ;
+    while (Console.available()) {
+        ch = Console.read();
+        if (ch == '\n') break;
+        filename[counter++] = ch;
+    }
+    while (Console.available());    // empty buffer
+    
+    File sdfile;
+    sdfile = SD.open(filename,FILE_WRITE);
+    if (!sdfile) {
+        Console.print("\r\nError creating"); Console.print(filename); Console.print("\r\n"); Console.flush();
+        return;
+    }
+
+rxLoop:
+    /* send NAK to start the transfer */
+    while (1) {     // timing loop - send NAK every 3 seconds until we time out or receive a char
+        Console.write(0x15);
+        elapsedMillis serialTimeout;
+        while (serialTimeout < 3000) {
+            if (Console.available()) break;   
+        }
+        if (serialTimeout > 3000) {
+            counter += 1;
+            if (counter > 15) {
+                Console.print("\r\nReceiver timed out\r\n");
+                goto timedOut;
+            }
+        }
+        if (Console.available()) {  // received a reply
+            goto gotAck;
+        }
+        continue;
+    }
+    timedOut:       // no response from sender
+    Console.print("\r\nNo response - stopping\r\n");
+    sdfile.close();
+    return;
+
+    gotAck:         // received a response, receive 132 bytes/packet
+    counter = 0;
+    while (counter < 132) {
+        if (Console.available())
+            ch = Console.read();
+            if (ch == EOT) goto rxDone;
+            block[counter++] = ch;
+    }
+    if (block[0] != SOH){        // bad block - send NAK
+        Console.write(NAK);
+        goto rxLoop;
+    }
+    /* save block */
+    for (int n=2; n<131; n++) sdfile.write(block[n]);
+    Console.write(ACK);
+    goto rxLoop;
+
+rxDone:     /* received EOT - transfer complete */
+    sdfile.flush();
+    sdfile.close();
+    delay(3000);        // let xmodem transmitter exit before sending any messages 
+    Console.print("\r\nTransfer Complete\r\n");
+    return;     // done
+    
+}
+
+
+
 
 void setup() {
-    Serial.begin(9600);
-    while (!Serial) {
+    Console.begin(9600);
+    while (!Console) {
         ; // wait for serial port
     }
     
     //Serial1.begin(SERIAL1_PORT_SPEED);
+
+    Printer.begin(PrinterBaudRate); // set up the serial port for the printer
 
     /* setup the hardware */
 
     pinMode(ABORTPIN, INPUT_PULLUP);
     pinMode(INTPIN, INPUT_PULLUP);
     pinMode(RESETPIN, INPUT_PULLUP);
-    pinMode(DISKLED, OUTPUT);
-    digitalWrite(DISKLED, 0);       // initial state=off
-    pinMode(IOLED, OUTPUT);
-    digitalWrite(IOLED, 0);         // initial state=off
-    pinMode(ACTLED, OUTPUT);
-    digitalWrite(ACTLED, 1);       // initial state=on
+    pinMode(RUNLED, OUTPUT);
+    digitalWrite(RUNLED, 0);        // initial state=off
+    pinMode(HALTLED, OUTPUT);
+    digitalWrite(HALTLED, 0);       // initial state=off
+    pinMode(ATTNLED, OUTPUT);
+    digitalWrite(ATTNLED, 0);       // initial state=off
+    pinMode(LOADPIN, INPUT_PULLUP);
+    pinMode(LINE31,INPUT);          // input line 0x13
+    pinMode(LINE32,INPUT);          // input line 0x12
+    pinMode(LINE33,OUTPUT);         // output line 0x14
+    digitalWrite(LINE33,0);         // initial output value = 1
+    pinMode(LINE34,OUTPUT);         // output line 0x15
+    digitalWrite(LINE34,0);         // initial output value = 1
 
 
     /* initialize built-in SD card */
     if (!SD.begin(chipSelect)) {
-        Serial.println("SD Card not initialized");
-        Serial.flush();
+        Console.println("SD Card not initialized");
+        Console.flush();
         abortRun();
     }
 
-
+    /* PSram test */
+    strcpy(PStest,"\r\n--- PSram Initialized ---\r\n");
+    Serial.println(PStest);
 
     
 }
@@ -365,8 +486,8 @@ void loop() {
     /* set up the RAM for the 8080 */
     RAM = (uint8_t *)malloc(RAMSIZE * sizeof(uint8_t));
     if (RAM == NULL) {
-        digitalWrite(ACTLED, 1);    // show problem
-        Serial.print("Error - unable to define memory for RAM\n");
+        digitalWrite(ATTNLED, 1);    // show problem
+        Console.print("Error - unable to define memory for RAM\n");
         while(1);
     }
 
@@ -385,27 +506,33 @@ void loop() {
     0x3e,0x20,0x0e,0x5e,0xd3,0x00,0x3c,0x0d,0xc2,0x04,0x00,\
     0x3e,0x0d,0xd3,0x00,0x3e,0x0a,0xd3,0x00,0xc3,0x00,0x00\
     };
-    for (int n=0;n<22;n++) RAM[n]=debugCode[n];
+    for (int n=0;n<22;n++) RAM[n]=debugCode[n];     // since this starts at 0x00 we don't worry about banking
     #endif
 
 
     /* if defined, load test program LOAD.COM from the SD card into RAM */
     #ifdef TESTCODE_DISK
-    Serial.println("Loading load.com from sd card");
-    Serial.flush();
+    Console.println("Loading load.com from sd card");
+    Console.flush();
     loadFile = SD.open("LOAD.COM");
     if (loadFile) {
-        Serial.println("file LOAD.COM opened");
-        Serial.flush();
+        Console.println("file LOAD.COM opened");
+        Console.flush();
         /* read from the file, save to memory */
         PC = 0;
         while (loadFile.available()) {
-            RAM[PC++] = loadFile.read();
+            #ifdef BANKDEF
+                RAM[PC<32768 ? PC : (((32768*BANK)+PC) & 0x3ffff)] = loadFile.read(); 
+                PC++;
+            #endif
+            #ifndef BANKDEF 
+                RAM[PC++] = loadFile.read();
+            #endif
         }
         loadFile.close();
     } else {
-        Serial.println("failed to open LOAD.COM");
-        Serial.flush();
+        Console.println("failed to open LOAD.COM");
+        Console.flush();
     }   
     #endif
 
@@ -414,24 +541,32 @@ void loop() {
      *  if it exists.
     */
      FLAG = 0;
-     Serial.println("Searching for BOOTCODE.COM");
-     Serial.flush();
-     loadFile = SD.open("BOOTCODE.COM");
+     Console.println("Searching for OS80.COM");
+     Console.flush();
+     loadFile = SD.open("OS80.COM");
      if (loadFile) {
-        Serial.println("file BOOTCODE.COM opened");
-        Serial.flush();
+        digitalWrite(ATTNLED,1);
+        Console.println("file OS80.COM opened");
+        Console.flush();
         /* read from the file, save to memory */
         PC = 0;
         while (loadFile.available()) {
-            RAM[PC++] = loadFile.read();
+            #ifdef BANKDEF
+                RAM[PC<32768 ? PC : (((32768*BANK)+PC) & 0x3ffff)];
+                PC++;
+            #endif
+            #ifndef BANKDEF
+                RAM[PC++] = loadFile.read();
+            #endif
         }
-        Serial.print("Loaded "); Serial.print(PC-1, DEC); Serial.println(" bytes into RAM");
+        Console.print("Loaded "); Console.print(PC-1, DEC); Console.println(" bytes into RAM");
         loadFile.close();
-        Serial.println("file BOOTCODE.COM loaded successfully");
-        Serial.flush();
+        Console.println("file OS80.COM loaded successfully");
+        Console.flush();
     } else {
-        Serial.println("failed to load BOOTCODE.COM");
-        Serial.flush();
+        Console.println("failed to load OS80.COM");
+        Console.flush();
+        digitalWrite(ATTNLED,0);
         FLAG = 1;       // 1=>no code loaded, jump to monitor routine, let user load code manually
     }
     
@@ -439,21 +574,25 @@ void loop() {
     
 
     /* this runs once */
-    Serial.println("-- 8080 Emulator Starting --");
+    Console.println("-- 8080 Emulator Starting --");
     if (FLAG == 1) {
-        Serial.println("No startup code found.");
+        Console.println("No startup code found.");
     }
-    Serial.flush();
-    reset();            // resets PC to 0h
+    Console.flush();
+    reset();            // resets PC to 0h, clears flags
 
     if (FLAG) abortRun();      // give the user a chance to load code. Resume from here.
-    // return from abortRun() starts the program loop
+    digitalWrite(RUNLED,1);
+    digitalWrite(HALTLED,0);
+    // return from abortRun(), start the program loop
 
     /*********************/
     /* main program loop */
     /*********************/
     while (1) {
 
+        digitalWrite(RUNLED,1);
+        
         /* test if RESET button pressed */
         if (digitalRead(RESETPIN)==0) {     // reset pressed
             reset();
@@ -465,16 +604,18 @@ void loop() {
 
         /* test if ABORT button pressed */
         if (digitalRead(ABORTPIN)==0) {       // abort pressed
-            Serial.println("\r\nABORT button pressed");
+            digitalWrite(RUNLED,0);
+            digitalWrite(HALTLED,1);
+            Console.println("\r\nABORT button pressed");
             abortRun();                       // jump to the monitor program
             while (digitalRead(ABORTPIN)==0) continue;    // wait until released
             delay(DEBOUNCE);
+            digitalWrite(HALTLED,0);
             continue;
         }
 
         /* test INT pin */
-        if (digitalRead(INTPIN)==0 && INTE == 1) {      // service 8080 interrupt
-            while (digitalRead(INTPIN)==0) ;            // wait until high
+        if (digitalRead(INTPIN)==0 && INTE) {      // service 8080 interrupt
             INTE = 0;
             // service int routine
             INTE = 1;
@@ -482,10 +623,28 @@ void loop() {
         }
 
 
+        /* test for LOAD button push */
+        if (digitalRead(LOADPIN)==0) {          // load file from remote device
+            digitalWrite(RUNLED,0);
+            digitalWrite(HALTLED,1);
+            xmodem();
+            while (digitalRead(LOADPIN)==0) continue;
+            delay(DEBOUNCE);
+            digitalWrite(RUNLED,1);
+            digitalWrite(HALTLED,0);
+            continue;
+        }
+
+
+        // Get next opcode from RAM
+        #ifdef BANKDEF
+        OP = RAM[PCB];
+        #endif
+        #ifndef BANKDEF
         OP = RAM[PC];  //get next byte from RAM
+        #endif
 
-
-        /* This is the instruction decoder. Decoding style is lifted from
+        /* This is the instruction decoder. Decoding style is derived from
          * https://github.com/simh/simh/blob/master/ALTAIR/altair_cpu.c
          * since it's smaller and cleaner than my orig code. I cleaned
          * up some things for this build, and tightened some code. Any 
@@ -493,7 +652,7 @@ void loop() {
         */
 
         if (OP == 0x76) {   // HLT - stop the processor until reset
-            Serial.println("\r\n8080 HALT instruction executed");
+            Console.println("\r\n8080 HALT instruction executed");
             abortRun();     // jump to Monitor routine
             continue;
         }
@@ -506,7 +665,12 @@ void loop() {
         }
         
         if ((OP & 0xC7)==0x06) {                    // MVI nn
+            #ifdef BANKDEF
+            putreg((OP >> 3) & 0x07, RAM[PCB+1]);
+            #endif
+            #ifndef BANKDEF
             putreg((OP >> 3) & 0x07, RAM[PC+1]);
+            #endif
             PC += 2;
             continue;
         }
@@ -561,7 +725,6 @@ void loop() {
                 PC++;
                 RAM[--StackP] = (PC & 0xff00) >> 8;
                 RAM[--StackP] = (PC & 0xff);
-                //PC = (hi << 8) + lo;
                 PC = (hi * 256) + lo;
             } else {
                 PC += 3;
@@ -1022,13 +1185,23 @@ void loop() {
             }
 
             case 0xd3:  {                       // OUT
+                #ifdef BANKDEF
+                output(a,RAM[++(PC>32768 ? PC : (((32768*BANK)+PC) & 0x3fff))];
+                #endif
+                #ifndef BANKDEF
                 output(A,RAM[++PC]);            // value/address
+                #endif
                 PC += 1;
                 break;
             }
 
             case 0xdb:  {                       // IN
+                #ifdef BANKDEF
+                A = input(RAM[++(PC>32768 ? PC : (((32768*BANK)+PC) & 0x3fff))]
+                #endif
+                #ifndef BANKDEF
                 A = input(RAM[++PC]);           // address
+                #endif
                 A &= 0xff;
                 PC += 1;
                 break;

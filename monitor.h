@@ -8,6 +8,9 @@
  *  (C) K Theis 10/2021
  */
 
+#define MAXROW  22          // max number of rows to display before pausing display
+
+
 #include <string.h>
 #include <SD.h>
 #include <SPI.h>
@@ -511,7 +514,7 @@ getnum:
         memset(temp,0,sizeof(temp));
         val = RAM[addr];
         linecount++;
-        if (linecount > 24) {
+        if (linecount > MAXROW) {
             Serial.print("\r\nq to quit, any key to continue: ");
             while (!Serial.available()) ;
             ch = Serial.read();
@@ -544,7 +547,7 @@ void showHelp() {       /* show command summary */
     Serial.print("\r\n");
     Serial.print("COMMAND                   SUMMARY\r\n");
     Serial.print("===============================================================================\r\n");
-    Serial.print("cont      Set PC to 0, clear the flags then resume execution at point just\r\n");
+    Serial.print("run       Set PC to 0, clear the flags then resume execution at point just\r\n");
     Serial.print("          after the stop that invoked this monitor.\r\n");
     Serial.print("reset     Set PC to 0, clear flags.\r\n");
     Serial.print("memtest   Non-destructivly test RAM memory.\r\n");
@@ -577,11 +580,13 @@ void abortRun() {       /* abort button pressed or an 8080 HLT (0x76) instructio
     char linein[40];
     extern uint16_t    PC, A, BC, DE, HL, StackP;
     extern uint8_t     OP;
-    //extern bool        C, Z, P, AC, S, INTE;
+    extern bool        C, Z, P, AC, S, INTE;
     int cnt = 0;
     char ch;
     extern void reset();
-    
+
+    digitalWrite(RUNLED,0);
+    digitalWrite(HALTLED,1);
     Serial.println("\r\n--- Monitor ---");
 
     /* show registers */
@@ -632,7 +637,7 @@ void abortRun() {       /* abort button pressed or an 8080 HLT (0x76) instructio
             continue;
         }
         
-        if (strncmp(linein,"cont",4)==0) {       // reset then return to execution
+        if (strncmp(linein,"run",3)==0) {       // reset then return to execution
             reset();
             return;
         }
