@@ -181,27 +181,32 @@ void output(uint8_t val, uint8_t addr) {
     }
 
     // set real time clock on teensy 
+    // read digits from RAM, convert to decimal, set RTC on teensy 4.1
     if (addr == 0x1b) {     
         // HMSDMY
         unsigned int HH, MM, SS;
         
-        char TEMP[30];
-        HH = (RAM[0xeff9]*10) + RAM[0xeff8]; 
+        // char TEMP[30];
+        HH = (RAM[0xeff9]*10) + RAM[0xeff8]; // MSB:LSB
         MM = (RAM[0xeff7]*10) + RAM[0xeff6];
         SS = (RAM[0xeff5]*10) + RAM[0xeff4];
-        
+
+        /*
         Console.print("\r\ntime set to "); 
         sprintf(TEMP,"%d-%d-%d\n\r",HH,MM,SS);
         Console.print(TEMP);
+        */
 
         // set the time (but not the date (yet))
         setTime(HH,MM,SS,1,1,2021);
 
+        /*
         memset(TEMP,0,sizeof(TEMP));
         //time_t t=now();
         sprintf(TEMP,"%d:%d:%d\r\n",hour(),minute(),second());
         Console.print("\r\ntime is ");
         Console.print(TEMP);
+        */
        
         return;
     }

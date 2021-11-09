@@ -772,6 +772,7 @@ showtime	; display current rtc time on console (use settime to initially
 ;---------- Settime ----------
 ;-----------------------------
 settime		; read the next 8 bytes, save into the RTC of the teensy
+		; this routine reads HH:MM:SS and saves in RAM as two digits
 		inx h		;; point to next byte in buffer
 		mov a,m
 		cpi	' '
