@@ -22,9 +22,9 @@ PROGSTART	EQU	0xf000
 BUFSTART	EQU	0xeffe
 BUFEND	EQU	0xeffc
 BUFTEMP	EQU	0xeffa
-TMPHOURS	EQU	0xeff8
-TMPMINUTES	EQU	0xeff7
-TMPSECONDS	EQU	0xeff6
+RTCHOURS	EQU	0xeff8
+RTCMINUTES	EQU	0xeff6
+RTCSECONDS	EQU	0xeff4
 LINEIN	EQU	0xef9e
 FILENAME	EQU	0xef4c
 TMPNAME	EQU	0xef3c
@@ -646,46 +646,46 @@ F44D FE 0A	cpi LF
 F44F CA 94 F4	jz sterr (F494H)
 F452 FE 0D	cpi CR
 F454 CA 94 F4	jz sterr (F494H)
-F457 46		mov b,m
-F458 23		inx h
-F459 4E		mov c,m
-F45A CD 87 F4	call stime1 (F487H)
-F45D 32 F8 EF	sta TMPHOURS (EFF8H)
-F460 23		inx h
-F461 7E		mov a,m
-F462 FE 3A	cpi ':'
-F464 C2 94 F4	jnz sterr (F494H)
-F467 23		inx h
-F468 46		mov b,m
-F469 23		inx h
-F46A 4E		mov c,m
-F46B CD 87 F4	call stime1 (F487H)
-F46E 32 F7 EF	sta TMPMINUTES (EFF7H)
-F471 23		inx h
-F472 7E		mov a,m
-F473 FE 3A	cpi ':'
-F475 C2 94 F4	jnz sterr (F494H)
-F478 23		inx h
-F479 46		mov b,m
+F457 CD 8A F4	call stcnvt (F48AH)
+F45A E5		push h
+F45B 60		mov h,b
+F45C 69		mov l,c
+F45D 22 F8 EF	shld RTCHOURS (EFF8H)
+F460 E1		pop h
+F461 23		inx h
+F462 7E		mov a,m
+F463 FE 3A	cpi ':'
+F465 C2 94 F4	jnz sterr (F494H)
+F468 23		inx h
+F469 CD 8A F4	call stcnvt (F48AH)
+F46C E5		push h
+F46D 60		mov h,b
+F46E 69		mov l,c
+F46F 22 F6 EF	shld RTCMINUTES (EFF6H)
+F472 E1		pop h
+F473 23		inx h
+F474 7E		mov a,m
+F475 FE 3A	cpi ':'
+F477 C2 94 F4	jnz sterr (F494H)
 F47A 23		inx h
-F47B 4E		mov c,m
-F47C CD 87 F4	call stime1 (F487H)
-F47F 32 F6 EF	sta TMPSECONDS (EFF6H)
-F482 D3 1B	out 0x1b
-F484 3E 00	mvi a 0
-F486 C9		ret
+F47B CD 8A F4	call stcnvt (F48AH)
+F47E E5		push h
+F47F 60		mov h,b
+F480 69		mov l,c
+F481 22 F4 EF	shld RTCSECONDS (EFF4H)
+F484 E1		pop h
+F485 D3 1B	out 0x1b
+F487 3E 00	mvi a 0
+F489 C9		ret
 
-F487	stime1
-F487 78		mov a,b
-F488 E6 0F	ani 0x0f
-F48A 07		rlc
-F48B 07		rlc
-F48C 07		rlc
-F48D 07		rlc
-F48E 47		mov b,a
-F48F 79		mov a,c
-F490 E6 0F	ani 0x0f
-F492 B0		ora b
+F48A	stcnvt
+F48A 7E		mov a,m
+F48B D6 30	sui 0x30
+F48D 47		mov b,a
+F48E 23		inx h
+F48F 7E		mov a,m
+F490 D6 30	sui 0x30
+F492 4F		mov c,a
 F493 C9		ret
 
 F494	sterr
@@ -1066,9 +1066,9 @@ PROGSTART     	F000H
 BUFSTART     	EFFEH
 BUFEND     	EFFCH
 BUFTEMP     	EFFAH
-TMPHOURS     	EFF8H
-TMPMINUTES     	EFF7H
-TMPSECONDS     	EFF6H
+RTCHOURS     	EFF8H
+RTCMINUTES     	EFF6H
+RTCSECONDS     	EFF4H
 LINEIN     	EF9EH
 FILENAME     	EF4CH
 TMPNAME     	EF3CH
@@ -1130,7 +1130,7 @@ pfloop     	F417H
 pfend     	F423H
 showtime     	F424H
 settime     	F446H
-stime1     	F487H
+stcnvt     	F48AH
 sterr     	F494H
 loadfile     	F497H
 lf1     	F4E0H

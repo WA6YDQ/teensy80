@@ -60,9 +60,9 @@ PROGSTART	EQU	0xf000		; start of OS/80 program code
 BUFSTART	EQU	0xeffe		; *2 byte hi:lo start address
 BUFEND		EQU	0xeffc		; *2 byte hi:lo end address
 BUFTEMP		EQU	0xeffa		; 2 byte hi:lo buffer
-TMPHOURS 	EQU	0xeff8		; RTC Hours 1 byte
-TMPMINUTES	EQU	0xeff7		; RTC Minutes 1 byte
-TMPSECONDS	EQU	0xeff6		; RTC Seconds 1 byte
+RTCHOURS 	EQU	0xeff8		; RTC Hours 2 bytes
+RTCMINUTES	EQU	0xeff6		; RTC Minutes 2 bytes
+RTCSECONDS	EQU	0xeff4		; RTC Seconds 2 bytes
 
 ; unused	EQU	0xeff4		; 2 byte
 ; unused	EQU	0xeff2		; 2 byte
@@ -781,51 +781,54 @@ settime		; read the next 8 bytes, save into the RTC of the teensy
 		cpi	CR
 		jz	sterr
 		;
-		mov b,m			; save 1st char
-		inx h
-		mov c,m			; save 2nd char
-		; convert to binary digit
-		call	stime1		; convert, return in A
-		sta	TMPHOURS	; save in hours
+		call	stcnvt		; convert to bin
+		push h			; save buffer pointer
+		mov h,b
+		mov l,c
+		shld	RTCHOURS	; save
+		pop h			; restore buffer pointer
+		
 		inx h			; skip ':'
 		mov a,m
 		cpi	':'
 		jnz	sterr		; verify valid input
-		inx h
-		mov b,m			; get MSB of minutes
-		inx h
-		mov c,m			; get LSB of minutes
-		call	stime1		; convert, return in A
-		sta	TMPMINUTES	; save in minutes
+		inx h			; point to next decimal char
+
+		call	stcnvt
+		push h
+		mov h,b
+		mov l,c
+		shld	RTCMINUTES
+		pop h
+				
 		inx h			; skip ':'
 		mov a,m
 		cpi	':'
 		jnz	sterr
 		inx h
-		mov b,m			; get MSB of seconds
-		inx h
-		mov c,m			; get LSB of seconds
-		call	stime1		; convert, return in A
-		sta	TMPSECONDS
-		; update RTC
+
+		call	stcnvt
+		push h
+		mov h,b
+		mov l,c
+		shld	RTCSECONDS
+		pop h
+		
 		out	0x1b		; update RTC
-		;
-		mvi a 0
+
+		mvi a	0		; return w/OK error code
 		ret
 
 
-stime1		; logically or the MSB/LSB digits together
-		mov a,b			; get msb
-		ani	0x0f		; mask unwanted
-		rlc
-		rlc
-		rlc
-		rlc			; shift to high nibble
-		mov b,a			; save for later
-		mov a,c			; get lsb
-		ani 	0x0f		; mask off upper nibble
-		ora	b		; combine MSB/LSB
+stcnvt		mov a,m			; save 1st char
+		sui 0x30		; ascii to binary
+		mov b,a
+		inx h
+		mov a,m			; save 2nd char
+		sui 0x30
+		mov c,a
 		ret
+
 
 sterr		; bad input
 		mvi a	1

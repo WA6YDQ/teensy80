@@ -24,6 +24,7 @@
  *  0x18 (output port, TONE enables audio tone, 10-2550hz, on TONEPIN)
  *  0x19 (output port, TONE disables tone on TONEPIN);
  *  0x1a (output port, BEEP (1kc for 250msec duration)
+ *  0x1b (output, set time from memory locations)
  *  0x1b (input, time() - return seconds 
  *  0x1c (input, time() - return minutes
  *  0x1d (input, time() - return hours
@@ -91,17 +92,20 @@ uint8_t input(uint8_t addr) {
 
     // time() SECONDS - return time in seconds
     if (addr == 0x1b) {
-        return second();
+        time_t t=now();
+        return second(t);
     }
 
     // time() MINUTES - return time in minutes
     if (addr == 0x1c) {
-        return minute();
+        time_t t=now();
+        return minute(t);
     }
 
     // time HOURS - return time in hours
     if (addr == 0x1d) {
-        return hour();
+        time_t t=now();
+        return hour(t);
     }
     
     return 0;
@@ -176,12 +180,29 @@ void output(uint8_t val, uint8_t addr) {
         return;
     }
 
-    if (addr == 0x1b) {     // set real time clock on teensy
+    // set real time clock on teensy 
+    if (addr == 0x1b) {     
         // HMSDMY
-        setTime(RAM[0xeff8],RAM[0xeff7],RAM[0xeff6],1,1,2020);
-        Console.print("\r\ntime set to "); Console.print(RAM[0xeff8], DEC); Console.print(RAM[0xeff7], DEC);Console.print(RAM[0xeff6], DEC); Console.print("\r\n");  
+        unsigned int HH, MM, SS;
+        
+        char TEMP[30];
+        HH = (RAM[0xeff9]*10) + RAM[0xeff8]; 
+        MM = (RAM[0xeff7]*10) + RAM[0xeff6];
+        SS = (RAM[0xeff5]*10) + RAM[0xeff4];
+        
+        Console.print("\r\ntime set to "); 
+        sprintf(TEMP,"%d-%d-%d\n\r",HH,MM,SS);
+        Console.print(TEMP);
+
+        // set the time (but not the date (yet))
+        setTime(HH,MM,SS,1,1,2021);
+
+        memset(TEMP,0,sizeof(TEMP));
+        //time_t t=now();
+        sprintf(TEMP,"%d:%d:%d\r\n",hour(),minute(),second());
         Console.print("\r\ntime is ");
-        Console.print(hour()); Console.print(":"); Console.print(minute()); Console.print(":"); Console.print(second()); Console.print("\r\n");
+        Console.print(TEMP);
+       
         return;
     }
 
