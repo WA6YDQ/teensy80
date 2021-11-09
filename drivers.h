@@ -176,7 +176,14 @@ void output(uint8_t val, uint8_t addr) {
         return;
     }
 
-    
+    if (addr == 0x1b) {     // set real time clock on teensy
+        // HMSDMY
+        setTime(RAM[0xeff8],RAM[0xeff7],RAM[0xeff6],1,1,2020);
+        Console.print("\r\ntime set to "); Console.print(RAM[0xeff8], DEC); Console.print(RAM[0xeff7], DEC);Console.print(RAM[0xeff6], DEC); Console.print("\r\n");  
+        Console.print("\r\ntime is ");
+        Console.print(hour()); Console.print(":"); Console.print(minute()); Console.print(":"); Console.print(second()); Console.print("\r\n");
+        return;
+    }
 
     /* memory bank selection based on sending a byte (0-6) to output port 0xfe */
     if (addr == 0xfe) {             // select 32K memory bank 0-6

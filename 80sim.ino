@@ -44,6 +44,7 @@
 #include <SD.h>
 #include <SPI.h>
 #include <TimeLib.h>
+#include <DS1307RTC.h> 
 const int chipSelect = BUILTIN_SDCARD;
 File loadFile;
 

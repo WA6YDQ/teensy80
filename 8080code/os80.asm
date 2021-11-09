@@ -15,6 +15,8 @@
 ; del		delete a file on the SD card
 ; run		execute program in memory at 0x00
 ; print		send ascii data in ram buffer to serial printer
+; time		display HH:MM:SS from teensy real time clock
+; settime	set the real time clock hh:mm:ss
 ; help		show commands
 
 ; TODO: 
@@ -44,6 +46,9 @@ CONIN		EQU	0x11
 CONIN_STAT	EQU	0x10		; return 0 until serial input is ready
 DISK		EQU	0x20		; disk subsystem address
 PRINTER		EQU	0x12		; serial printer port
+HOURS		EQU	0x1d		; RTC hours address
+MINUTES		EQU	0x1c		; RTC minutes
+SECONDS		EQU	0x1b		; RTC seconds
 
 
 ;; define addresses used
@@ -55,8 +60,10 @@ PROGSTART	EQU	0xf000		; start of OS/80 program code
 BUFSTART	EQU	0xeffe		; *2 byte hi:lo start address
 BUFEND		EQU	0xeffc		; *2 byte hi:lo end address
 BUFTEMP		EQU	0xeffa		; 2 byte hi:lo buffer
-; unused 	EQU	0xeff8		; 2 byte
-; unused	EQU	0xeff6		; 2 byte
+TMPHOURS 	EQU	0xeff8		; RTC Hours 1 byte
+TMPMINUTES	EQU	0xeff7		; RTC Minutes 1 byte
+TMPSECONDS	EQU	0xeff6		; RTC Seconds 1 byte
+
 ; unused	EQU	0xeff4		; 2 byte
 ; unused	EQU	0xeff2		; 2 byte
 ; unused	EQU	0xeff0		; 2 byte
@@ -93,7 +100,9 @@ coldstart	; jump here at beginning
 		call	print		; display on conout
 
 warmstart	lxi sp	STACK		; near top of memory
-
+		jmp	loop1
+	
+	
 		mvi a	0
 test1a		push psw
 		mvi a	CR
@@ -200,11 +209,11 @@ a2b_2	ani	0fh
 		ora b
 		ret
 
-;------------------------------------
-;--------- Binary to Ascii ----------
-;------------------------------------
+;--------------------------------
+;--------- Print Ascii ----------
+;--------------------------------
 
-printascii	; convert binary in A, print as 2 hex bytes
+printascii	; convert binary value in A, print as 2 hex bytes
 		mov b,a		; save A
 		ani	f0h	; MSB
 		rar
@@ -254,7 +263,7 @@ printdecimal	; convert value in A to decimal, print it
 
 divide		; divide number in HL by B. Dividend in HL, divisor in B
 		mvi c 0x08		; counter
-up		dad h
+up		dad h			; calling routine supplies HL and B
 		mov a,h
 		sub b
 		jc down
@@ -626,7 +635,7 @@ test9		; print - send ascii bytes to printer port
 		jmp	printFile	; send ascii file to serial printer
 
 
-test10		; output current real time to console
+test10		; time - output current real time to console
 		lxi h	LINEIN
 		mvi a	't'
 		cmp	m
@@ -643,8 +652,39 @@ test10		; output current real time to console
 		mvi a	'e'
 		cmp	m
 		jnz	test11
-		jmp	showtime	
-test11
+		jmp	showtime
+
+
+test11		; stime - set the real time clock 
+		lxi h	LINEIN
+		mvi a	's'
+		cmp	m
+		jnz	test12
+		inx h
+		mvi a	't'
+		cmp m
+		jnz	test12
+		inx h
+		mvi a	'i'
+		cmp m
+		jnz	test12
+		inx h
+		mvi a	'm'
+		cmp m
+		jnz	test12
+		inx h
+		mvi a	'e'
+		cmp m
+		jnz	test12
+		inx h
+		mvi a	' '
+		cmp m
+		jz	settime
+		jmp	test12
+		
+
+	
+test12
 fail		mvi a	1
 		ret			; return 1 as failed to find a command
 
@@ -662,7 +702,7 @@ showhelp	; show help summary
 		;
 HELPMSG	DB CR DB LF DB "OS/80 Command Summary" DB  CR DB  LF
 	DB "halt, load, save, run, dir, del, " DB CR DB LF 
-	DB "mon, print, help" DB CR DB LF DB EOL
+	DB "mon, print, time, stime, help" DB CR DB LF DB EOL
 
 
 ;---------------------------
@@ -697,8 +737,9 @@ pfend		; finished w/file
 		ret			; done
 
 
-
+;------------------------------
 ;---------- Showtime ----------
+;------------------------------
 showtime	; display current rtc time on console (use settime to initially 
 		; set the clock, or 'time' will just show time since powerup).
 
@@ -707,24 +748,89 @@ showtime	; display current rtc time on console (use settime to initially
 		mvi a	LF
 		out	CONOUT
 
-		in	0x1d		; hours
+		in	HOURS		; hours
 		call	printdecimal
 
 		mvi a	':'
 		out	CONOUT
 
-		in	0x1c		; minutes
+		in	MINUTES		; minutes
 		call	printdecimal
 
 		mvi a	':'
 		out	CONOUT
 
-		in	0x1b		; seconds
+		in	SECONDS		; seconds
 		call	printdecimal
 		
 		mvi a	0		; return code
 		ret
 
+
+
+;-----------------------------
+;---------- Settime ----------
+;-----------------------------
+settime		; read the next 8 bytes, save into the RTC of the teensy
+		inx h		;; point to next byte in buffer
+		mov a,m
+		cpi	' '
+		jz	settime		; skip blanks
+		cpi	LF
+		jz	sterr		; no values
+		cpi	CR
+		jz	sterr
+		;
+		mov b,m			; save 1st char
+		inx h
+		mov c,m			; save 2nd char
+		; convert to binary digit
+		call	stime1		; convert, return in A
+		sta	TMPHOURS	; save in hours
+		inx h			; skip ':'
+		mov a,m
+		cpi	':'
+		jnz	sterr		; verify valid input
+		inx h
+		mov b,m			; get MSB of minutes
+		inx h
+		mov c,m			; get LSB of minutes
+		call	stime1		; convert, return in A
+		sta	TMPMINUTES	; save in minutes
+		inx h			; skip ':'
+		mov a,m
+		cpi	':'
+		jnz	sterr
+		inx h
+		mov b,m			; get MSB of seconds
+		inx h
+		mov c,m			; get LSB of seconds
+		call	stime1		; convert, return in A
+		sta	TMPSECONDS
+		; update RTC
+		out	0x1b		; update RTC
+		;
+		mvi a 0
+		ret
+
+
+stime1		; logically or the MSB/LSB digits together
+		mov a,b			; get msb
+		ani	0x0f		; mask unwanted
+		rlc
+		rlc
+		rlc
+		rlc			; shift to high nibble
+		mov b,a			; save for later
+		mov a,c			; get lsb
+		ani 	0x0f		; mask off upper nibble
+		ora	b		; combine MSB/LSB
+		ret
+
+sterr		; bad input
+		mvi a	1
+		ret
+		
 
 ;-------------------------------
 ;----------- Loadfile ----------

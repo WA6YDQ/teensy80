@@ -1,7 +1,7 @@
 
 Reading from source file os80.asm
 
-Number of tokens found in file is 1400
+Number of tokens found in file is 1533
 
 CR	EQU	0x0d
 LF	EQU	0x0a
@@ -15,10 +15,16 @@ CONIN	EQU	0x11
 CONIN_STAT	EQU	0x10
 DISK	EQU	0x20
 PRINTER	EQU	0x12
+HOURS	EQU	0x1d
+MINUTES	EQU	0x1c
+SECONDS	EQU	0x1b
 PROGSTART	EQU	0xf000
 BUFSTART	EQU	0xeffe
 BUFEND	EQU	0xeffc
 BUFTEMP	EQU	0xeffa
+TMPHOURS	EQU	0xeff8
+TMPMINUTES	EQU	0xeff7
+TMPSECONDS	EQU	0xeff6
 LINEIN	EQU	0xef9e
 FILENAME	EQU	0xef4c
 TMPNAME	EQU	0xef3c
@@ -32,931 +38,1014 @@ org  (PROGSTART)	F000
 
 
 F000	coldstart
-F000 21 45 F0	lxi h signon_msg (F045H)
-F003 CD 88 F0	call print (F088H)
+F000 21 48 F0	lxi h signon_msg (F048H)
+F003 CD 8B F0	call print (F08BH)
 
 F006	warmstart
 F006 31 DC EE	lxi sp STACK (EEDCH)
-F009 3E 00	mvi a 0
+F009 C3 23 F0	jmp loop1 (F023H)
+F00C 3E 00	mvi a 0
 
-F00B	test1a
-F00B F5		push psw
-F00C 3E 0D	mvi a CR
-F00E D3 11	out CONOUT
-F010 3E 0A	mvi a LF
-F012 D3 11	out CONOUT
-F014 F1		pop psw
-F015 F5		push psw
-F016 CD E8 F0	call printdecimal (F0E8H)
-F019 F1		pop psw
-F01A 3C		inr a
-F01B FE 64	cpi 100
-F01D C2 0B F0	jnz test1a (F00BH)
+F00E	test1a
+F00E F5		push psw
+F00F 3E 0D	mvi a CR
+F011 D3 11	out CONOUT
+F013 3E 0A	mvi a LF
+F015 D3 11	out CONOUT
+F017 F1		pop psw
+F018 F5		push psw
+F019 CD EB F0	call printdecimal (F0EBH)
+F01C F1		pop psw
+F01D 3C		inr a
+F01E FE 64	cpi 100
+F020 C2 0E F0	jnz test1a (F00EH)
 
-F020	loop1
-F020 CD 92 F0	call prompt (F092H)
-F023 CD 0A F1	call getline (F10AH)
-F026 21 9E EF	lxi h LINEIN (EF9EH)
-F029 7E		mov a,m
-F02A FE 0A	cpi LF
-F02C CA 20 F0	jz loop1 (F020H)
-F02F FE 0D	cpi CR
-F031 CA 20 F0	jz loop1 (F020H)
-F034 CD 34 F2	call cmdtest (F234H)
-F037 FE 00	cpi 0x00
-F039 CA 20 F0	jz loop1 (F020H)
-F03C 21 82 F0	lxi h errormsg (F082H)
-F03F CD 88 F0	call print (F088H)
-F042 C3 20 F0	jmp loop1 (F020H)
+F023	loop1
+F023 CD 95 F0	call prompt (F095H)
+F026 CD 0D F1	call getline (F10DH)
+F029 21 9E EF	lxi h LINEIN (EF9EH)
+F02C 7E		mov a,m
+F02D FE 0A	cpi LF
+F02F CA 23 F0	jz loop1 (F023H)
+F032 FE 0D	cpi CR
+F034 CA 23 F0	jz loop1 (F023H)
+F037 CD 37 F2	call cmdtest (F237H)
+F03A FE 00	cpi 0x00
+F03C CA 23 F0	jz loop1 (F023H)
+F03F 21 85 F0	lxi h errormsg (F085H)
+F042 CD 8B F0	call print (F08BH)
+F045 C3 23 F0	jmp loop1 (F023H)
 
-F045	signon_msg
-F045  0D	DB  CR
-F046  0A	DB  LF
-F047		DB  "*** OS/80 Command Interpeter ***"
-F067  0D	DB  CR
-F068  0A	DB  LF
-F069		DB  "type 'help' for commands"
-F081  FF	DB  EOL
+F048	signon_msg
+F048  0D	DB  CR
+F049  0A	DB  LF
+F04A		DB  "*** OS/80 Command Interpeter ***"
+F06A  0D	DB  CR
+F06B  0A	DB  LF
+F06C		DB  "type 'help' for commands"
+F084  FF	DB  EOL
 
-F082	errormsg
-F082  0D	DB  CR
-F083  0A	DB  LF
-F084		DB  "EH?"
-F087  FF	DB  EOL
+F085	errormsg
+F085  0D	DB  CR
+F086  0A	DB  LF
+F087		DB  "EH?"
+F08A  FF	DB  EOL
 
-F088	print
-F088 7E		mov a,m
-F089 FE FF	cpi EOL
-F08B C8		rz
-F08C D3 11	out CONOUT
-F08E 23		inx h
-F08F C3 88 F0	jmp print (F088H)
+F08B	print
+F08B 7E		mov a,m
+F08C FE FF	cpi EOL
+F08E C8		rz
+F08F D3 11	out CONOUT
+F091 23		inx h
+F092 C3 8B F0	jmp print (F08BH)
 
-F092	prompt
-F092 3E 0D	mvi a CR
-F094 D3 11	out CONOUT
-F096 3E 0A	mvi a LF
-F098 D3 11	out CONOUT
-F09A 3E 4F	mvi a 'O'
-F09C D3 11	out CONOUT
-F09E 3E 4B	mvi a 'K'
-F0A0 D3 11	out CONOUT
-F0A2 3E 3E	mvi a '>'
-F0A4 D3 11	out CONOUT
-F0A6 C9		ret
+F095	prompt
+F095 3E 0D	mvi a CR
+F097 D3 11	out CONOUT
+F099 3E 0A	mvi a LF
+F09B D3 11	out CONOUT
+F09D 3E 4F	mvi a 'O'
+F09F D3 11	out CONOUT
+F0A1 3E 4B	mvi a 'K'
+F0A3 D3 11	out CONOUT
+F0A5 3E 3E	mvi a '>'
+F0A7 D3 11	out CONOUT
+F0A9 C9		ret
 
-F0A7	a2b
-F0A7 78		mov a,b
-F0A8 DE 30	sbi 30h
-F0AA FE 0B	cpi 0bh
-F0AC DA B1 F0	jc a2b_1 (F0B1H)
-F0AF DE 07	sbi 7
+F0AA	a2b
+F0AA 78		mov a,b
+F0AB DE 30	sbi 30h
+F0AD FE 0B	cpi 0bh
+F0AF DA B4 F0	jc a2b_1 (F0B4H)
+F0B2 DE 07	sbi 7
 
-F0B1	a2b_1
-F0B1 A7		ana a
-F0B2 07		rlc
-F0B3 07		rlc
-F0B4 07		rlc
+F0B4	a2b_1
+F0B4 A7		ana a
 F0B5 07		rlc
-F0B6 E6 F0	ani f0h
-F0B8 47		mov b,a
-F0B9 79		mov a,c
-F0BA DE 30	sbi 30h
-F0BC FE 0B	cpi 0bh
-F0BE DA C3 F0	jc a2b_2 (F0C3H)
-F0C1 DE 07	sbi 7
+F0B6 07		rlc
+F0B7 07		rlc
+F0B8 07		rlc
+F0B9 E6 F0	ani f0h
+F0BB 47		mov b,a
+F0BC 79		mov a,c
+F0BD DE 30	sbi 30h
+F0BF FE 0B	cpi 0bh
+F0C1 DA C6 F0	jc a2b_2 (F0C6H)
+F0C4 DE 07	sbi 7
 
-F0C3	a2b_2
-F0C3 E6 0F	ani 0fh
-F0C5 B0		ora b
-F0C6 C9		ret
+F0C6	a2b_2
+F0C6 E6 0F	ani 0fh
+F0C8 B0		ora b
+F0C9 C9		ret
 
-F0C7	printascii
-F0C7 47		mov b,a
-F0C8 E6 F0	ani f0h
-F0CA 1F		rar
-F0CB 1F		rar
-F0CC 1F		rar
+F0CA	printascii
+F0CA 47		mov b,a
+F0CB E6 F0	ani f0h
 F0CD 1F		rar
-F0CE C6 30	adi 30h
-F0D0 FE 3A	cpi 3Ah
-F0D2 DA D7 F0	jc printascii_1 (F0D7H)
-F0D5 C6 07	adi 7
+F0CE 1F		rar
+F0CF 1F		rar
+F0D0 1F		rar
+F0D1 C6 30	adi 30h
+F0D3 FE 3A	cpi 3Ah
+F0D5 DA DA F0	jc printascii_1 (F0DAH)
+F0D8 C6 07	adi 7
 
-F0D7	printascii_1
-F0D7 D3 11	out CONOUT
-F0D9 78		mov a,b
-F0DA E6 0F	ani 0fh
-F0DC C6 30	adi 30h
-F0DE FE 3A	cpi 3Ah
-F0E0 DA E5 F0	jc printascii_2 (F0E5H)
-F0E3 C6 07	adi 7
+F0DA	printascii_1
+F0DA D3 11	out CONOUT
+F0DC 78		mov a,b
+F0DD E6 0F	ani 0fh
+F0DF C6 30	adi 30h
+F0E1 FE 3A	cpi 3Ah
+F0E3 DA E8 F0	jc printascii_2 (F0E8H)
+F0E6 C6 07	adi 7
 
-F0E5	printascii_2
-F0E5 D3 11	out CONOUT
-F0E7 C9		ret
+F0E8	printascii_2
+F0E8 D3 11	out CONOUT
+F0EA C9		ret
 
-F0E8	printdecimal
-F0E8 6F		mov l,a
-F0E9 26 00	mvi h 0x00
-F0EB 06 0A	mvi b 0x0a
-F0ED CD FB F0	call divide (F0FBH)
-F0F0 7D		mov a,l
-F0F1 C6 30	adi 0x30
-F0F3 D3 11	out CONOUT
-F0F5 7C		mov a,h
-F0F6 C6 30	adi 0x30
-F0F8 D3 11	out CONOUT
-F0FA C9		ret
+F0EB	printdecimal
+F0EB 6F		mov l,a
+F0EC 26 00	mvi h 0x00
+F0EE 06 0A	mvi b 0x0a
+F0F0 CD FE F0	call divide (F0FEH)
+F0F3 7D		mov a,l
+F0F4 C6 30	adi 0x30
+F0F6 D3 11	out CONOUT
+F0F8 7C		mov a,h
+F0F9 C6 30	adi 0x30
+F0FB D3 11	out CONOUT
+F0FD C9		ret
 
-F0FB	divide
-F0FB 0E 08	mvi c 0x08
+F0FE	divide
+F0FE 0E 08	mvi c 0x08
 
-F0FD	up
-F0FD 29		dad h
-F0FE 7C		mov a,h
-F0FF 90		sub b
-F100 DA 05 F1	jc down (F105H)
-F103 67		mov h,a
-F104 2C		inr l
+F100	up
+F100 29		dad h
+F101 7C		mov a,h
+F102 90		sub b
+F103 DA 08 F1	jc down (F108H)
+F106 67		mov h,a
+F107 2C		inr l
 
-F105	down
-F105 0D		dcr c
-F106 C2 FD F0	jnz up (F0FDH)
-F109 C9		ret
+F108	down
+F108 0D		dcr c
+F109 C2 00 F1	jnz up (F100H)
+F10C C9		ret
 
-F10A	getline
-F10A 21 9E EF	lxi h LINEIN (EF9EH)
-F10D 0E 50	mvi c 0x50
+F10D	getline
+F10D 21 9E EF	lxi h LINEIN (EF9EH)
+F110 0E 50	mvi c 0x50
 
-F10F	gl0
-F10F 3E 00	mvi a 0x00
-F111 77		mov m,a
-F112 23		inx h
-F113 0D		dcr c
-F114 3E 00	mvi a 0x00
-F116 B9		cmp c
-F117 C2 0F F1	jnz gl0 (F10FH)
-F11A 0E 01	mvi c 0x01
-F11C 21 9E EF	lxi h LINEIN (EF9EH)
+F112	gl0
+F112 3E 00	mvi a 0x00
+F114 77		mov m,a
+F115 23		inx h
+F116 0D		dcr c
+F117 3E 00	mvi a 0x00
+F119 B9		cmp c
+F11A C2 12 F1	jnz gl0 (F112H)
+F11D 0E 01	mvi c 0x01
+F11F 21 9E EF	lxi h LINEIN (EF9EH)
 
-F11F	gl1
-F11F DB 10	in CONIN_STAT
-F121 FE 00	cpi 0x00
-F123 CA 1F F1	jz gl1 (F11FH)
+F122	gl1
+F122 DB 10	in CONIN_STAT
+F124 FE 00	cpi 0x00
+F126 CA 22 F1	jz gl1 (F122H)
 
-F126	gl2
-F126 DB 11	in CONIN
-F128 FE 03	cpi 0x03
-F12A CA 20 F0	jz loop1 (F020H)
-F12D FE 15	cpi 0x15
-F12F CA 6B F1	jz discard_line (F16BH)
-F132 FE 7F	cpi DEL
-F134 C2 4E F1	jnz gl2a (F14EH)
-F137 3E 01	mvi a 0x01
-F139 B9		cmp c
-F13A CA 1F F1	jz gl1 (F11FH)
-F13D 3E 08	mvi a BS
-F13F D3 11	out CONOUT
-F141 3E 20	mvi a ' '
-F143 D3 11	out CONOUT
-F145 3E 08	mvi a BS
-F147 D3 11	out CONOUT
-F149 2B		dcx h
-F14A 0D		dcr c
-F14B C3 1F F1	jmp gl1 (F11FH)
+F129	gl2
+F129 DB 11	in CONIN
+F12B FE 03	cpi 0x03
+F12D CA 23 F0	jz loop1 (F023H)
+F130 FE 15	cpi 0x15
+F132 CA 6E F1	jz discard_line (F16EH)
+F135 FE 7F	cpi DEL
+F137 C2 51 F1	jnz gl2a (F151H)
+F13A 3E 01	mvi a 0x01
+F13C B9		cmp c
+F13D CA 22 F1	jz gl1 (F122H)
+F140 3E 08	mvi a BS
+F142 D3 11	out CONOUT
+F144 3E 20	mvi a ' '
+F146 D3 11	out CONOUT
+F148 3E 08	mvi a BS
+F14A D3 11	out CONOUT
+F14C 2B		dcx h
+F14D 0D		dcr c
+F14E C3 22 F1	jmp gl1 (F122H)
 
-F14E	gl2a
-F14E 47		mov b,a
-F14F 3E 50	mvi a 0x50
-F151 B9		cmp c
-F152 CA 64 F1	jz gl3 (F164H)
-F155 78		mov a,b
-F156 77		mov m,a
-F157 D3 11	out CONOUT
-F159 FE 0A	cpi LF
-F15B C8		rz
-F15C FE 0D	cpi CR
+F151	gl2a
+F151 47		mov b,a
+F152 3E 50	mvi a 0x50
+F154 B9		cmp c
+F155 CA 67 F1	jz gl3 (F167H)
+F158 78		mov a,b
+F159 77		mov m,a
+F15A D3 11	out CONOUT
+F15C FE 0A	cpi LF
 F15E C8		rz
-F15F 23		inx h
-F160 0C		inr c
-F161 C3 1F F1	jmp gl1 (F11FH)
-
-F164	gl3
-F164 3E 07	mvi a BELL
-F166 D3 11	out CONOUT
-F168 C3 1F F1	jmp gl1 (F11FH)
-
-F16B	discard_line
-F16B 3E 20	mvi a ' '
-F16D D3 11	out CONOUT
-F16F 3E 5E	mvi a '^'
-F171 D3 11	out CONOUT
-F173 3E 55	mvi a 'U'
-F175 D3 11	out CONOUT
-F177 3E 0D	mvi a CR
-F179 D3 11	out CONOUT
-F17B 3E 0A	mvi a LF
-F17D D3 11	out CONOUT
-F17F C3 0A F1	jmp getline (F10AH)
-
-F182	getFilename
-F182 23		inx h
-F183 01 4C EF	lxi b FILENAME (EF4CH)
-
-F186	gf1
-F186 7E		mov a,m
-F187 FE 0D	cpi CR
-F189 CA B4 F1	jz get_filename_error (F1B4H)
-F18C FE 0A	cpi LF
-F18E CA B4 F1	jz get_filename_error (F1B4H)
-F191 FE FF	cpi EOL
-F193 CA B4 F1	jz get_filename_error (F1B4H)
-F196 FE 20	cpi ' '
-F198 C2 9F F1	jnz gf2 (F19FH)
-F19B 23		inx h
-F19C C3 86 F1	jmp gf1 (F186H)
-
-F19F	gf2
-F19F 02		stax b
-F1A0 23		inx h
-F1A1 03		inx b
-F1A2 7E		mov a,m
-F1A3 FE 0D	cpi CR
-F1A5 CA B0 F1	jz gf3 (F1B0H)
-F1A8 FE 0A	cpi LF
-F1AA CA B0 F1	jz gf3 (F1B0H)
-F1AD C3 9F F1	jmp gf2 (F19FH)
-
-F1B0	gf3
-F1B0 3E 00	mvi a 0x00
-F1B2 02		stax b
-F1B3 C9		ret
-
-F1B4	get_filename_error
-F1B4 21 BD F1	lxi h gfn_message1 (F1BDH)
-F1B7 CD 88 F0	call print (F088H)
-F1BA 3E 01	mvi a 0x01
-F1BC C9		ret
-
-F1BD	gfn_message1
-F1BD  0D	DB  CR
-F1BE  0A	DB  LF
-F1BF		DB  "Missing filename"
-F1CF  FF	DB  EOL
-
-F1D0	getAddress
-F1D0 0E 00	mvi c 0x00
-F1D2 21 9E EF	lxi h LINEIN (EF9EH)
-
-F1D5	gsa0
-F1D5 7E		mov a,m
-F1D6 FE 0A	cpi LF
-F1D8 CA E5 F1	jz gsa1 (F1E5H)
-F1DB FE 0D	cpi CR
-F1DD CA E5 F1	jz gsa1 (F1E5H)
-F1E0 23		inx h
-F1E1 0C		inr c
-F1E2 C3 D5 F1	jmp gsa0 (F1D5H)
-
-F1E5	gsa1
-F1E5 3E 04	mvi a 0x04
-F1E7 B9		cmp c
-F1E8 CA F4 F1	jz gsa2 (F1F4H)
-F1EB 21 0D F2	lxi h gsa_bad_address (F20DH)
-F1EE CD 88 F0	call print (F088H)
-F1F1 3E 01	mvi a 0x01
-F1F3 C9		ret
-
-F1F4	gsa2
-F1F4 21 9E EF	lxi h LINEIN (EF9EH)
-F1F7 46		mov b,m
-F1F8 23		inx h
-F1F9 4E		mov c,m
-F1FA CD A7 F0	call a2b (F0A7H)
-F1FD 11 FA EF	lxi d BUFTEMP (EFFAH)
-F200 12		stax d
-F201 23		inx h
-F202 46		mov b,m
-F203 23		inx h
-F204 4E		mov c,m
-F205 CD A7 F0	call a2b (F0A7H)
-F208 13		inx d
-F209 12		stax d
-F20A 3E 00	mvi a 0x00
-F20C C9		ret
-
-F20D	gsa_bad_address
-F20D  0D	DB  CR
-F20E  0A	DB  LF
-F20F		DB  "Value must be 4 digit hex (ie. FA30)"
-F233  FF	DB  EOL
-
-F234	cmdtest
-
-F234	test1
-F234 21 9E EF	lxi h LINEIN (EF9EH)
-F237 3E 68	mvi a 'h'
-F239 BE		cmp m
-F23A C2 53 F2	jnz test2 (F253H)
-F23D 23		inx h
-F23E 3E 61	mvi a 'a'
-F240 BE		cmp m
-F241 C2 53 F2	jnz test2 (F253H)
-F244 23		inx h
-F245 3E 6C	mvi a 'l'
-F247 BE		cmp m
-F248 C2 53 F2	jnz test2 (F253H)
-F24B 23		inx h
-F24C 3E 74	mvi a 't'
-F24E BE		cmp m
-F24F C2 53 F2	jnz test2 (F253H)
-F252 76		hlt
-
-F253	test2
-F253 21 9E EF	lxi h LINEIN (EF9EH)
-F256 3E 64	mvi a 'd'
-F258 BE		cmp m
-F259 C2 6D F2	jnz test3 (F26DH)
-F25C 23		inx h
-F25D 3E 69	mvi a 'i'
-F25F BE		cmp m
-F260 C2 6D F2	jnz test3 (F26DH)
-F263 23		inx h
-F264 3E 72	mvi a 'r'
-F266 BE		cmp m
-F267 C2 6D F2	jnz test3 (F26DH)
-F26A C3 79 F5	jmp showDir (F579H)
-
-F26D	test3
-F26D 21 9E EF	lxi h LINEIN (EF9EH)
-F270 3E 6C	mvi a 'l'
-F272 BE		cmp m
-F273 C2 95 F2	jnz test4 (F295H)
-F276 23		inx h
-F277 3E 6F	mvi a 'o'
-F279 BE		cmp m
-F27A C2 95 F2	jnz test4 (F295H)
-F27D 23		inx h
-F27E 3E 61	mvi a 'a'
-F280 BE		cmp m
-F281 C2 95 F2	jnz test4 (F295H)
-F284 23		inx h
-F285 3E 64	mvi a 'd'
-F287 BE		cmp m
-F288 C2 95 F2	jnz test4 (F295H)
-F28B 23		inx h
-F28C 3E 20	mvi a ' '
-F28E BE		cmp m
-F28F C2 95 F2	jnz test4 (F295H)
-F292 C3 07 F4	jmp loadfile (F407H)
-
-F295	test4
-F295 21 9E EF	lxi h LINEIN (EF9EH)
-F298 3E 73	mvi a 's'
-F29A BE		cmp m
-F29B C2 BD F2	jnz test5 (F2BDH)
-F29E 23		inx h
-F29F 3E 61	mvi a 'a'
-F2A1 BE		cmp m
-F2A2 C2 BD F2	jnz test5 (F2BDH)
-F2A5 23		inx h
-F2A6 3E 76	mvi a 'v'
-F2A8 BE		cmp m
-F2A9 C2 BD F2	jnz test5 (F2BDH)
-F2AC 23		inx h
-F2AD 3E 65	mvi a 'e'
-F2AF BE		cmp m
-F2B0 C2 BD F2	jnz test5 (F2BDH)
-F2B3 23		inx h
-F2B4 3E 20	mvi a ' '
-F2B6 BE		cmp m
-F2B7 C2 BD F2	jnz test5 (F2BDH)
-F2BA C3 87 F4	jmp savefile (F487H)
-
-F2BD	test5
-F2BD 21 9E EF	lxi h LINEIN (EF9EH)
-F2C0 3E 68	mvi a 'h'
-F2C2 BE		cmp m
-F2C3 C2 DE F2	jnz test6 (F2DEH)
-F2C6 23		inx h
-F2C7 3E 65	mvi a 'e'
-F2C9 BE		cmp m
-F2CA C2 DE F2	jnz test6 (F2DEH)
-F2CD 23		inx h
-F2CE 3E 6C	mvi a 'l'
-F2D0 BE		cmp m
-F2D1 C2 DE F2	jnz test6 (F2DEH)
-F2D4 23		inx h
-F2D5 3E 70	mvi a 'p'
-F2D7 BE		cmp m
-F2D8 C2 DE F2	jnz test6 (F2DEH)
-F2DB C3 78 F3	jmp showhelp (F378H)
-
-F2DE	test6
-F2DE 21 9E EF	lxi h LINEIN (EF9EH)
-F2E1 3E 72	mvi a 'r'
-F2E3 BE		cmp m
-F2E4 C2 F8 F2	jnz test7 (F2F8H)
-F2E7 23		inx h
-F2E8 3E 75	mvi a 'u'
-F2EA BE		cmp m
-F2EB C2 F8 F2	jnz test7 (F2F8H)
-F2EE 23		inx h
-F2EF 3E 6E	mvi a 'n'
-F2F1 BE		cmp m
-F2F2 C2 F8 F2	jnz test7 (F2F8H)
-F2F5 C3 00 00	jmp 0x0000
-
-F2F8	test7
-F2F8 21 9E EF	lxi h LINEIN (EF9EH)
-F2FB 3E 64	mvi a 'd'
-F2FD BE		cmp m
-F2FE C2 12 F3	jnz test8 (F312H)
-F301 23		inx h
-F302 3E 65	mvi a 'e'
-F304 BE		cmp m
-F305 C2 12 F3	jnz test8 (F312H)
-F308 23		inx h
-F309 3E 6C	mvi a 'l'
-F30B BE		cmp m
-F30C C2 12 F3	jnz test8 (F312H)
-F30F C3 88 F5	jmp delete (F588H)
-
-F312	test8
-F312 21 9E EF	lxi h LINEIN (EF9EH)
-F315 3E 6D	mvi a 'm'
-F317 BE		cmp m
-F318 C2 2C F3	jnz test9 (F32CH)
-F31B 23		inx h
-F31C 3E 6F	mvi a 'o'
-F31E BE		cmp m
-F31F C2 2C F3	jnz test9 (F32CH)
-F322 23		inx h
-F323 3E 6E	mvi a 'n'
-F325 BE		cmp m
-F326 C2 2C F3	jnz test9 (F32CH)
-F329 C3 95 F5	jmp mon (F595H)
-
-F32C	test9
-F32C 21 9E EF	lxi h LINEIN (EF9EH)
-F32F 3E 70	mvi a 'p'
-F331 BE		cmp m
-F332 C2 54 F3	jnz test10 (F354H)
-F335 23		inx h
-F336 3E 72	mvi a 'r'
-F338 BE		cmp m
-F339 C2 54 F3	jnz test10 (F354H)
-F33C 23		inx h
-F33D 3E 69	mvi a 'i'
-F33F BE		cmp m
-F340 C2 54 F3	jnz test10 (F354H)
-F343 23		inx h
-F344 3E 6E	mvi a 'n'
-F346 BE		cmp m
-F347 C2 54 F3	jnz test10 (F354H)
-F34A 23		inx h
-F34B 3E 74	mvi a 't'
-F34D BE		cmp m
-F34E C2 54 F3	jnz test10 (F354H)
-F351 C3 D0 F3	jmp printFile (F3D0H)
-
-F354	test10
-F354 21 9E EF	lxi h LINEIN (EF9EH)
-F357 3E 74	mvi a 't'
-F359 BE		cmp m
-F35A C2 75 F3	jnz test11 (F375H)
-F35D 23		inx h
-F35E 3E 69	mvi a 'i'
-F360 BE		cmp m
-F361 C2 75 F3	jnz test11 (F375H)
-F364 23		inx h
-F365 3E 6D	mvi a 'm'
-F367 BE		cmp m
-F368 C2 75 F3	jnz test11 (F375H)
-F36B 23		inx h
-F36C 3E 65	mvi a 'e'
-F36E BE		cmp m
-F36F C2 75 F3	jnz test11 (F375H)
-F372 C3 E5 F3	jmp showtime (F3E5H)
-
-F375	test11
-
-F375	fail
-F375 3E 01	mvi a 1
-F377 C9		ret
-
-F378	showhelp
-F378 21 81 F3	lxi h HELPMSG (F381H)
-F37B CD 88 F0	call print (F088H)
-F37E 3E 00	mvi a 0x00
-F380 C9		ret
-
-F381	HELPMSG
-F381  0D	DB  CR
-F382  0A	DB  LF
-F383		DB  "OS/80 Command Summary"
-F398  0D	DB  CR
-F399  0A	DB  LF
-F39A		DB  "halt, load, save, run, dir, del, "
-F3BB  0D	DB  CR
-F3BC  0A	DB  LF
-F3BD		DB  "mon, print, help"
-F3CD  0D	DB  CR
-F3CE  0A	DB  LF
-F3CF  FF	DB  EOL
-
-F3D0	printFile
-F3D0 01 FE EF	lxi b BUFSTART (EFFEH)
-F3D3 0A		ldax b
-F3D4 67		mov h,a
-F3D5 03		inx b
-F3D6 0A		ldax b
-F3D7 6F		mov l,a
-
-F3D8	pfloop
-F3D8 7E		mov a,m
-F3D9 FE 00	cpi NUL
-F3DB CA E4 F3	jz pfend (F3E4H)
-F3DE D3 12	out PRINTER
-F3E0 23		inx h
-F3E1 C3 D8 F3	jmp pfloop (F3D8H)
-
-F3E4	pfend
-F3E4 C9		ret
-
-F3E5	showtime
-F3E5 3E 0D	mvi a CR
-F3E7 D3 11	out CONOUT
-F3E9 3E 0A	mvi a LF
-F3EB D3 11	out CONOUT
-F3ED DB 1D	in 0x1d
-F3EF CD E8 F0	call printdecimal (F0E8H)
-F3F2 3E 3A	mvi a ':'
-F3F4 D3 11	out CONOUT
-F3F6 DB 1C	in 0x1c
-F3F8 CD E8 F0	call printdecimal (F0E8H)
-F3FB 3E 3A	mvi a ':'
-F3FD D3 11	out CONOUT
-F3FF DB 1B	in 0x1b
-F401 CD E8 F0	call printdecimal (F0E8H)
-F404 3E 00	mvi a 0
-F406 C9		ret
-
-F407	loadfile
-F407 01 FE EF	lxi b BUFSTART (EFFEH)
-F40A 3E 00	mvi a 0x00
-F40C 02		stax b
-F40D 03		inx b
-F40E 02		stax b
-F40F CD 82 F1	call getFilename (F182H)
-F412 FE 01	cpi 0x01
-F414 C8		rz
-F415 21 57 F4	lxi h load_msg1 (F457H)
-F418 CD 88 F0	call print (F088H)
-F41B 21 FE EF	lxi h BUFSTART (EFFEH)
-F41E 7E		mov a,m
-F41F CD C7 F0	call printascii (F0C7H)
-F422 23		inx h
-F423 7E		mov a,m
-F424 CD C7 F0	call printascii (F0C7H)
-F427 21 77 F4	lxi h load_msg2 (F477H)
-F42A CD 88 F0	call print (F088H)
-F42D CD 0A F1	call getline (F10AH)
-F430 21 9E EF	lxi h LINEIN (EF9EH)
-F433 7E		mov a,m
-F434 FE 0A	cpi LF
-F436 CA 50 F4	jz lf1 (F450H)
-F439 FE 0D	cpi CR
-F43B CA 50 F4	jz lf1 (F450H)
-F43E CD D0 F1	call getAddress (F1D0H)
-F441 FE 01	cpi 0x01
-F443 C8		rz
-F444 21 FA EF	lxi h BUFTEMP (EFFAH)
-F447 01 FE EF	lxi b BUFSTART (EFFEH)
-F44A 7E		mov a,m
-F44B 02		stax b
-F44C 23		inx h
-F44D 03		inx b
-F44E 7E		mov a,m
-F44F 02		stax b
-
-F450	lf1
-F450 3E 03	mvi a 0x03
-F452 D3 20	out DISK
-F454 3E 00	mvi a 0x00
-F456 C9		ret
-
-F457	load_msg1
-F457  0D	DB  CR
-F458  0A	DB  LF
-F459		DB  "Enter 4 digit Start address ("
-F476  FF	DB  EOL
-
-F477	load_msg2
-F477		DB  "H) or <enter>: "
-F486  FF	DB  EOL
-
-F487	savefile
-F487 01 FE EF	lxi b BUFSTART (EFFEH)
-F48A 3E 00	mvi a 0x00
-F48C 02		stax b
-F48D 03		inx b
-F48E 02		stax b
-F48F 01 FC EF	lxi b BUFEND (EFFCH)
-F492 3E 01	mvi a 0x01
-F494 02		stax b
-F495 3D		dcr a
-F496 03		inx b
-F497 02		stax b
-F498 CD 82 F1	call getFilename (F182H)
-F49B FE 01	cpi 0x01
-F49D C8		rz
-F49E 21 1B F5	lxi h save_msg1 (F51BH)
-F4A1 CD 88 F0	call print (F088H)
-F4A4 21 FE EF	lxi h BUFSTART (EFFEH)
-F4A7 7E		mov a,m
-F4A8 CD C7 F0	call printascii (F0C7H)
-F4AB 23		inx h
-F4AC 7E		mov a,m
-F4AD CD C7 F0	call printascii (F0C7H)
-F4B0 21 3B F5	lxi h save_msg2 (F53BH)
-F4B3 CD 88 F0	call print (F088H)
-F4B6 CD 0A F1	call getline (F10AH)
-F4B9 21 9E EF	lxi h LINEIN (EF9EH)
-F4BC 7E		mov a,m
-F4BD FE 0A	cpi LF
-F4BF CA D9 F4	jz sf1 (F4D9H)
-F4C2 FE 0D	cpi CR
-F4C4 CA D9 F4	jz sf1 (F4D9H)
-F4C7 CD D0 F1	call getAddress (F1D0H)
-F4CA FE 01	cpi 0x01
-F4CC C8		rz
-F4CD 21 FA EF	lxi h BUFTEMP (EFFAH)
-F4D0 01 FE EF	lxi b BUFSTART (EFFEH)
-F4D3 7E		mov a,m
-F4D4 02		stax b
-F4D5 23		inx h
-F4D6 03		inx b
-F4D7 7E		mov a,m
-F4D8 02		stax b
-
-F4D9	sf1
-F4D9 21 4B F5	lxi h save_msg3 (F54BH)
-F4DC CD 88 F0	call print (F088H)
-F4DF 21 FC EF	lxi h BUFEND (EFFCH)
-F4E2 7E		mov a,m
-F4E3 CD C7 F0	call printascii (F0C7H)
-F4E6 23		inx h
-F4E7 7E		mov a,m
-F4E8 CD C7 F0	call printascii (F0C7H)
-F4EB 21 69 F5	lxi h save_msg4 (F569H)
-F4EE CD 88 F0	call print (F088H)
-F4F1 CD 0A F1	call getline (F10AH)
-F4F4 21 9E EF	lxi h LINEIN (EF9EH)
-F4F7 7E		mov a,m
-F4F8 FE 0A	cpi LF
-F4FA CA 14 F5	jz sf2 (F514H)
-F4FD FE 0D	cpi CR
-F4FF CA 14 F5	jz sf2 (F514H)
-F502 CD D0 F1	call getAddress (F1D0H)
-F505 FE 01	cpi 0x01
-F507 C8		rz
-F508 21 FA EF	lxi h BUFTEMP (EFFAH)
-F50B 01 FC EF	lxi b BUFEND (EFFCH)
-F50E 7E		mov a,m
-F50F 02		stax b
-F510 23		inx h
-F511 03		inx b
-F512 7E		mov a,m
-F513 02		stax b
-
-F514	sf2
-F514 3E 02	mvi a 0x02
-F516 D3 20	out DISK
-F518 3E 00	mvi a 0x00
-F51A C9		ret
-
-F51B	save_msg1
-F51B  0D	DB  CR
-F51C  0A	DB  LF
-F51D		DB  "Enter 4 digit Start address ("
-F53A  FF	DB  EOL
-
-F53B	save_msg2
-F53B		DB  "H) or <enter>: "
-F54A  FF	DB  EOL
-
-F54B	save_msg3
-F54B  0D	DB  CR
-F54C  0A	DB  LF
-F54D		DB  "Enter 4 digit End address ("
-F568  FF	DB  EOL
-
-F569	save_msg4
-F569		DB  "H) or <enter>: "
-F578  FF	DB  EOL
-
-F579	showDir
-F579 3E 0D	mvi a CR
-F57B D3 11	out CONOUT
-F57D 3E 0A	mvi a LF
-F57F D3 11	out CONOUT
-F581 3E 01	mvi a 0x01
-F583 D3 20	out DISK
-F585 3E 00	mvi a 0x00
-F587 C9		ret
-
-F588	delete
-F588 CD 82 F1	call getFilename (F182H)
-F58B FE 01	cpi 0x01
-F58D C8		rz
-F58E 3E 04	mvi a 0x04
-F590 D3 20	out DISK
-F592 3E 00	mvi a 0x00
-F594 C9		ret
-
-F595	mon
-F595 21 9D F6	lxi h mon_banner_msg (F69DH)
-F598 CD 88 F0	call print (F088H)
-F59B 3E 00	mvi a 0
-F59D 67		mov h,a
-F59E 6F		mov l,a
-
-F59F	mon1
-F59F 3E 0D	mvi a CR
-F5A1 D3 11	out CONOUT
-F5A3 3E 0A	mvi a LF
-F5A5 D3 11	out CONOUT
-F5A7 CD 90 F6	call mon_showAddress (F690H)
-F5AA 7E		mov a,m
-F5AB CD C7 F0	call printascii (F0C7H)
-F5AE 3E 20	mvi a ' '
-F5B0 D3 11	out CONOUT
-
-F5B2	mon1a
-F5B2 CD 84 F6	call mon_getByte (F684H)
-F5B5 FE 78	cpi 'x'
-F5B7 C2 C3 F5	jnz mon2 (F5C3H)
-F5BA 21 BB F6	lxi h mon_exit_msg (F6BBH)
-F5BD CD 88 F0	call print (F088H)
-F5C0 3E 00	mvi a 0
-F5C2 C9		ret
-
-F5C3	mon2
-F5C3 FE 0D	cpi CR
-F5C5 C2 CC F5	jnz mon3 (F5CCH)
-F5C8 23		inx h
-F5C9 C3 9F F5	jmp mon1 (F59FH)
-
-F5CC	mon3
-F5CC FE 6E	cpi 'n'
-F5CE C2 D5 F5	jnz mon4 (F5D5H)
-F5D1 23		inx h
-F5D2 C3 9F F5	jmp mon1 (F59FH)
-
-F5D5	mon4
-F5D5 FE 62	cpi 'b'
-F5D7 C2 DE F5	jnz mon5 (F5DEH)
-F5DA 2B		dcx h
-F5DB C3 9F F5	jmp mon1 (F59FH)
-
-F5DE	mon5
-F5DE FE 2E	cpi '.'
-F5E0 C2 F3 F5	jnz mon6 (F5F3H)
-
-F5E3	mon5a
-F5E3 CD 84 F6	call mon_getByte (F684H)
-F5E6 47		mov b,a
-F5E7 CD 84 F6	call mon_getByte (F684H)
-F5EA 4F		mov c,a
-F5EB CD A7 F0	call a2b (F0A7H)
-F5EE 77		mov m,a
-F5EF 23		inx h
-F5F0 C3 9F F5	jmp mon1 (F59FH)
-
-F5F3	mon6
-F5F3 FE 6D	cpi 'm'
-F5F5 C2 13 F6	jnz mon7 (F613H)
-F5F8 CD 84 F6	call mon_getByte (F684H)
-F5FB 47		mov b,a
-F5FC CD 84 F6	call mon_getByte (F684H)
-F5FF 4F		mov c,a
-F600 CD A7 F0	call a2b (F0A7H)
-F603 67		mov h,a
-F604 CD 84 F6	call mon_getByte (F684H)
-F607 47		mov b,a
-F608 CD 84 F6	call mon_getByte (F684H)
-F60B 4F		mov c,a
-F60C CD A7 F0	call a2b (F0A7H)
-F60F 6F		mov l,a
-F610 C3 9F F5	jmp mon1 (F59FH)
-
-F613	mon7
-F613 FE 67	cpi 'g'
-F615 C2 31 F6	jnz mon8 (F631H)
-F618 CD 84 F6	call mon_getByte (F684H)
-F61B 47		mov b,a
-F61C CD 84 F6	call mon_getByte (F684H)
-F61F 4F		mov c,a
-F620 CD A7 F0	call a2b (F0A7H)
-F623 67		mov h,a
-F624 CD 84 F6	call mon_getByte (F684H)
-F627 47		mov b,a
-F628 CD 84 F6	call mon_getByte (F684H)
-F62B 4F		mov c,a
-F62C CD A7 F0	call a2b (F0A7H)
-F62F 6F		mov l,a
-F630 E9		pchl
-
-F631	mon8
-F631 FE 64	cpi 'd'
-F633 C2 81 F6	jnz mon9 (F681H)
-F636 E5		push h
-F637 CD 84 F6	call mon_getByte (F684H)
-F63A 47		mov b,a
-F63B CD 84 F6	call mon_getByte (F684H)
-F63E 4F		mov c,a
-F63F CD A7 F0	call a2b (F0A7H)
-F642 67		mov h,a
-F643 CD 84 F6	call mon_getByte (F684H)
-F646 47		mov b,a
-F647 CD 84 F6	call mon_getByte (F684H)
-F64A 4F		mov c,a
-F64B CD A7 F0	call a2b (F0A7H)
-F64E 6F		mov l,a
-F64F 3E 0D	mvi a CR
-F651 D3 11	out CONOUT
-F653 3E 0A	mvi a LF
-F655 D3 11	out CONOUT
-F657 16 10	mvi d 16
-
-F659	mon8a
-F659 0E 10	mvi c 16
-
-F65B	mon8b
-F65B CD 90 F6	call mon_showAddress (F690H)
-
-F65E	mon8c
-F65E 3E 20	mvi a ' '
-F660 D3 11	out CONOUT
-F662 7E		mov a,m
-F663 CD C7 F0	call printascii (F0C7H)
-F666 23		inx h
-F667 0D		dcr c
-F668 79		mov a,c
-F669 FE 00	cpi 0
-F66B C2 5E F6	jnz mon8c (F65EH)
-F66E 3E 0D	mvi a CR
-F670 D3 11	out CONOUT
-F672 3E 0A	mvi a LF
-F674 D3 11	out CONOUT
-F676 15		dcr d
-F677 7A		mov a,d
-F678 FE 00	cpi 0
-F67A C2 59 F6	jnz mon8a (F659H)
-F67D E1		pop h
-F67E C3 9F F5	jmp mon1 (F59FH)
-
-F681	mon9
-
-F681	mon_err
-F681 C3 B2 F5	jmp mon1a (F5B2H)
-
-F684	mon_getByte
-F684 DB 10	in CONIN_STAT
-F686 FE 00	cpi 0
-F688 CA 84 F6	jz mon_getByte (F684H)
-F68B DB 11	in CONIN
-F68D D3 11	out CONOUT
-F68F C9		ret
-
-F690	mon_showAddress
-F690 7C		mov a,h
-F691 CD C7 F0	call printascii (F0C7H)
-F694 7D		mov a,l
-F695 CD C7 F0	call printascii (F0C7H)
-F698 3E 20	mvi a ' '
-F69A D3 11	out CONOUT
-F69C C9		ret
-
-F69D	mon_banner_msg
-F69D  0D	DB  CR
-F69E  0A	DB  LF
-F69F		DB  "OS/80 Resident ML Monitor"
-F6B8  0D	DB  CR
-F6B9  0A	DB  LF
-F6BA  FF	DB  EOL
-
-F6BB	mon_exit_msg
-F6BB  0D	DB  CR
-F6BC  0A	DB  LF
-F6BD		DB  "Leaving ML Monitor"
-F6CF  0D	DB  CR
-F6D0  0A	DB  LF
-F6D1  FF	DB  EOL
-
-Labels Used: 108
+F15F FE 0D	cpi CR
+F161 C8		rz
+F162 23		inx h
+F163 0C		inr c
+F164 C3 22 F1	jmp gl1 (F122H)
+
+F167	gl3
+F167 3E 07	mvi a BELL
+F169 D3 11	out CONOUT
+F16B C3 22 F1	jmp gl1 (F122H)
+
+F16E	discard_line
+F16E 3E 20	mvi a ' '
+F170 D3 11	out CONOUT
+F172 3E 5E	mvi a '^'
+F174 D3 11	out CONOUT
+F176 3E 55	mvi a 'U'
+F178 D3 11	out CONOUT
+F17A 3E 0D	mvi a CR
+F17C D3 11	out CONOUT
+F17E 3E 0A	mvi a LF
+F180 D3 11	out CONOUT
+F182 C3 0D F1	jmp getline (F10DH)
+
+F185	getFilename
+F185 23		inx h
+F186 01 4C EF	lxi b FILENAME (EF4CH)
+
+F189	gf1
+F189 7E		mov a,m
+F18A FE 0D	cpi CR
+F18C CA B7 F1	jz get_filename_error (F1B7H)
+F18F FE 0A	cpi LF
+F191 CA B7 F1	jz get_filename_error (F1B7H)
+F194 FE FF	cpi EOL
+F196 CA B7 F1	jz get_filename_error (F1B7H)
+F199 FE 20	cpi ' '
+F19B C2 A2 F1	jnz gf2 (F1A2H)
+F19E 23		inx h
+F19F C3 89 F1	jmp gf1 (F189H)
+
+F1A2	gf2
+F1A2 02		stax b
+F1A3 23		inx h
+F1A4 03		inx b
+F1A5 7E		mov a,m
+F1A6 FE 0D	cpi CR
+F1A8 CA B3 F1	jz gf3 (F1B3H)
+F1AB FE 0A	cpi LF
+F1AD CA B3 F1	jz gf3 (F1B3H)
+F1B0 C3 A2 F1	jmp gf2 (F1A2H)
+
+F1B3	gf3
+F1B3 3E 00	mvi a 0x00
+F1B5 02		stax b
+F1B6 C9		ret
+
+F1B7	get_filename_error
+F1B7 21 C0 F1	lxi h gfn_message1 (F1C0H)
+F1BA CD 8B F0	call print (F08BH)
+F1BD 3E 01	mvi a 0x01
+F1BF C9		ret
+
+F1C0	gfn_message1
+F1C0  0D	DB  CR
+F1C1  0A	DB  LF
+F1C2		DB  "Missing filename"
+F1D2  FF	DB  EOL
+
+F1D3	getAddress
+F1D3 0E 00	mvi c 0x00
+F1D5 21 9E EF	lxi h LINEIN (EF9EH)
+
+F1D8	gsa0
+F1D8 7E		mov a,m
+F1D9 FE 0A	cpi LF
+F1DB CA E8 F1	jz gsa1 (F1E8H)
+F1DE FE 0D	cpi CR
+F1E0 CA E8 F1	jz gsa1 (F1E8H)
+F1E3 23		inx h
+F1E4 0C		inr c
+F1E5 C3 D8 F1	jmp gsa0 (F1D8H)
+
+F1E8	gsa1
+F1E8 3E 04	mvi a 0x04
+F1EA B9		cmp c
+F1EB CA F7 F1	jz gsa2 (F1F7H)
+F1EE 21 10 F2	lxi h gsa_bad_address (F210H)
+F1F1 CD 8B F0	call print (F08BH)
+F1F4 3E 01	mvi a 0x01
+F1F6 C9		ret
+
+F1F7	gsa2
+F1F7 21 9E EF	lxi h LINEIN (EF9EH)
+F1FA 46		mov b,m
+F1FB 23		inx h
+F1FC 4E		mov c,m
+F1FD CD AA F0	call a2b (F0AAH)
+F200 11 FA EF	lxi d BUFTEMP (EFFAH)
+F203 12		stax d
+F204 23		inx h
+F205 46		mov b,m
+F206 23		inx h
+F207 4E		mov c,m
+F208 CD AA F0	call a2b (F0AAH)
+F20B 13		inx d
+F20C 12		stax d
+F20D 3E 00	mvi a 0x00
+F20F C9		ret
+
+F210	gsa_bad_address
+F210  0D	DB  CR
+F211  0A	DB  LF
+F212		DB  "Value must be 4 digit hex (ie. FA30)"
+F236  FF	DB  EOL
+
+F237	cmdtest
+
+F237	test1
+F237 21 9E EF	lxi h LINEIN (EF9EH)
+F23A 3E 68	mvi a 'h'
+F23C BE		cmp m
+F23D C2 56 F2	jnz test2 (F256H)
+F240 23		inx h
+F241 3E 61	mvi a 'a'
+F243 BE		cmp m
+F244 C2 56 F2	jnz test2 (F256H)
+F247 23		inx h
+F248 3E 6C	mvi a 'l'
+F24A BE		cmp m
+F24B C2 56 F2	jnz test2 (F256H)
+F24E 23		inx h
+F24F 3E 74	mvi a 't'
+F251 BE		cmp m
+F252 C2 56 F2	jnz test2 (F256H)
+F255 76		hlt
+
+F256	test2
+F256 21 9E EF	lxi h LINEIN (EF9EH)
+F259 3E 64	mvi a 'd'
+F25B BE		cmp m
+F25C C2 70 F2	jnz test3 (F270H)
+F25F 23		inx h
+F260 3E 69	mvi a 'i'
+F262 BE		cmp m
+F263 C2 70 F2	jnz test3 (F270H)
+F266 23		inx h
+F267 3E 72	mvi a 'r'
+F269 BE		cmp m
+F26A C2 70 F2	jnz test3 (F270H)
+F26D C3 09 F6	jmp showDir (F609H)
+
+F270	test3
+F270 21 9E EF	lxi h LINEIN (EF9EH)
+F273 3E 6C	mvi a 'l'
+F275 BE		cmp m
+F276 C2 98 F2	jnz test4 (F298H)
+F279 23		inx h
+F27A 3E 6F	mvi a 'o'
+F27C BE		cmp m
+F27D C2 98 F2	jnz test4 (F298H)
+F280 23		inx h
+F281 3E 61	mvi a 'a'
+F283 BE		cmp m
+F284 C2 98 F2	jnz test4 (F298H)
+F287 23		inx h
+F288 3E 64	mvi a 'd'
+F28A BE		cmp m
+F28B C2 98 F2	jnz test4 (F298H)
+F28E 23		inx h
+F28F 3E 20	mvi a ' '
+F291 BE		cmp m
+F292 C2 98 F2	jnz test4 (F298H)
+F295 C3 97 F4	jmp loadfile (F497H)
+
+F298	test4
+F298 21 9E EF	lxi h LINEIN (EF9EH)
+F29B 3E 73	mvi a 's'
+F29D BE		cmp m
+F29E C2 C0 F2	jnz test5 (F2C0H)
+F2A1 23		inx h
+F2A2 3E 61	mvi a 'a'
+F2A4 BE		cmp m
+F2A5 C2 C0 F2	jnz test5 (F2C0H)
+F2A8 23		inx h
+F2A9 3E 76	mvi a 'v'
+F2AB BE		cmp m
+F2AC C2 C0 F2	jnz test5 (F2C0H)
+F2AF 23		inx h
+F2B0 3E 65	mvi a 'e'
+F2B2 BE		cmp m
+F2B3 C2 C0 F2	jnz test5 (F2C0H)
+F2B6 23		inx h
+F2B7 3E 20	mvi a ' '
+F2B9 BE		cmp m
+F2BA C2 C0 F2	jnz test5 (F2C0H)
+F2BD C3 17 F5	jmp savefile (F517H)
+
+F2C0	test5
+F2C0 21 9E EF	lxi h LINEIN (EF9EH)
+F2C3 3E 68	mvi a 'h'
+F2C5 BE		cmp m
+F2C6 C2 E1 F2	jnz test6 (F2E1H)
+F2C9 23		inx h
+F2CA 3E 65	mvi a 'e'
+F2CC BE		cmp m
+F2CD C2 E1 F2	jnz test6 (F2E1H)
+F2D0 23		inx h
+F2D1 3E 6C	mvi a 'l'
+F2D3 BE		cmp m
+F2D4 C2 E1 F2	jnz test6 (F2E1H)
+F2D7 23		inx h
+F2D8 3E 70	mvi a 'p'
+F2DA BE		cmp m
+F2DB C2 E1 F2	jnz test6 (F2E1H)
+F2DE C3 AA F3	jmp showhelp (F3AAH)
+
+F2E1	test6
+F2E1 21 9E EF	lxi h LINEIN (EF9EH)
+F2E4 3E 72	mvi a 'r'
+F2E6 BE		cmp m
+F2E7 C2 FB F2	jnz test7 (F2FBH)
+F2EA 23		inx h
+F2EB 3E 75	mvi a 'u'
+F2ED BE		cmp m
+F2EE C2 FB F2	jnz test7 (F2FBH)
+F2F1 23		inx h
+F2F2 3E 6E	mvi a 'n'
+F2F4 BE		cmp m
+F2F5 C2 FB F2	jnz test7 (F2FBH)
+F2F8 C3 00 00	jmp 0x0000
+
+F2FB	test7
+F2FB 21 9E EF	lxi h LINEIN (EF9EH)
+F2FE 3E 64	mvi a 'd'
+F300 BE		cmp m
+F301 C2 15 F3	jnz test8 (F315H)
+F304 23		inx h
+F305 3E 65	mvi a 'e'
+F307 BE		cmp m
+F308 C2 15 F3	jnz test8 (F315H)
+F30B 23		inx h
+F30C 3E 6C	mvi a 'l'
+F30E BE		cmp m
+F30F C2 15 F3	jnz test8 (F315H)
+F312 C3 18 F6	jmp delete (F618H)
+
+F315	test8
+F315 21 9E EF	lxi h LINEIN (EF9EH)
+F318 3E 6D	mvi a 'm'
+F31A BE		cmp m
+F31B C2 2F F3	jnz test9 (F32FH)
+F31E 23		inx h
+F31F 3E 6F	mvi a 'o'
+F321 BE		cmp m
+F322 C2 2F F3	jnz test9 (F32FH)
+F325 23		inx h
+F326 3E 6E	mvi a 'n'
+F328 BE		cmp m
+F329 C2 2F F3	jnz test9 (F32FH)
+F32C C3 25 F6	jmp mon (F625H)
+
+F32F	test9
+F32F 21 9E EF	lxi h LINEIN (EF9EH)
+F332 3E 70	mvi a 'p'
+F334 BE		cmp m
+F335 C2 57 F3	jnz test10 (F357H)
+F338 23		inx h
+F339 3E 72	mvi a 'r'
+F33B BE		cmp m
+F33C C2 57 F3	jnz test10 (F357H)
+F33F 23		inx h
+F340 3E 69	mvi a 'i'
+F342 BE		cmp m
+F343 C2 57 F3	jnz test10 (F357H)
+F346 23		inx h
+F347 3E 6E	mvi a 'n'
+F349 BE		cmp m
+F34A C2 57 F3	jnz test10 (F357H)
+F34D 23		inx h
+F34E 3E 74	mvi a 't'
+F350 BE		cmp m
+F351 C2 57 F3	jnz test10 (F357H)
+F354 C3 0F F4	jmp printFile (F40FH)
+
+F357	test10
+F357 21 9E EF	lxi h LINEIN (EF9EH)
+F35A 3E 74	mvi a 't'
+F35C BE		cmp m
+F35D C2 78 F3	jnz test11 (F378H)
+F360 23		inx h
+F361 3E 69	mvi a 'i'
+F363 BE		cmp m
+F364 C2 78 F3	jnz test11 (F378H)
+F367 23		inx h
+F368 3E 6D	mvi a 'm'
+F36A BE		cmp m
+F36B C2 78 F3	jnz test11 (F378H)
+F36E 23		inx h
+F36F 3E 65	mvi a 'e'
+F371 BE		cmp m
+F372 C2 78 F3	jnz test11 (F378H)
+F375 C3 24 F4	jmp showtime (F424H)
+
+F378	test11
+F378 21 9E EF	lxi h LINEIN (EF9EH)
+F37B 3E 73	mvi a 's'
+F37D BE		cmp m
+F37E C2 A7 F3	jnz test12 (F3A7H)
+F381 23		inx h
+F382 3E 74	mvi a 't'
+F384 BE		cmp m
+F385 C2 A7 F3	jnz test12 (F3A7H)
+F388 23		inx h
+F389 3E 69	mvi a 'i'
+F38B BE		cmp m
+F38C C2 A7 F3	jnz test12 (F3A7H)
+F38F 23		inx h
+F390 3E 6D	mvi a 'm'
+F392 BE		cmp m
+F393 C2 A7 F3	jnz test12 (F3A7H)
+F396 23		inx h
+F397 3E 65	mvi a 'e'
+F399 BE		cmp m
+F39A C2 A7 F3	jnz test12 (F3A7H)
+F39D 23		inx h
+F39E 3E 20	mvi a ' '
+F3A0 BE		cmp m
+F3A1 CA 46 F4	jz settime (F446H)
+F3A4 C3 A7 F3	jmp test12 (F3A7H)
+
+F3A7	test12
+
+F3A7	fail
+F3A7 3E 01	mvi a 1
+F3A9 C9		ret
+
+F3AA	showhelp
+F3AA 21 B3 F3	lxi h HELPMSG (F3B3H)
+F3AD CD 8B F0	call print (F08BH)
+F3B0 3E 00	mvi a 0x00
+F3B2 C9		ret
+
+F3B3	HELPMSG
+F3B3  0D	DB  CR
+F3B4  0A	DB  LF
+F3B5		DB  "OS/80 Command Summary"
+F3CA  0D	DB  CR
+F3CB  0A	DB  LF
+F3CC		DB  "halt, load, save, run, dir, del, "
+F3ED  0D	DB  CR
+F3EE  0A	DB  LF
+F3EF		DB  "mon, print, time, stime, help"
+F40C  0D	DB  CR
+F40D  0A	DB  LF
+F40E  FF	DB  EOL
+
+F40F	printFile
+F40F 01 FE EF	lxi b BUFSTART (EFFEH)
+F412 0A		ldax b
+F413 67		mov h,a
+F414 03		inx b
+F415 0A		ldax b
+F416 6F		mov l,a
+
+F417	pfloop
+F417 7E		mov a,m
+F418 FE 00	cpi NUL
+F41A CA 23 F4	jz pfend (F423H)
+F41D D3 12	out PRINTER
+F41F 23		inx h
+F420 C3 17 F4	jmp pfloop (F417H)
+
+F423	pfend
+F423 C9		ret
+
+F424	showtime
+F424 3E 0D	mvi a CR
+F426 D3 11	out CONOUT
+F428 3E 0A	mvi a LF
+F42A D3 11	out CONOUT
+F42C DB 1D	in HOURS
+F42E CD EB F0	call printdecimal (F0EBH)
+F431 3E 3A	mvi a ':'
+F433 D3 11	out CONOUT
+F435 DB 1C	in MINUTES
+F437 CD EB F0	call printdecimal (F0EBH)
+F43A 3E 3A	mvi a ':'
+F43C D3 11	out CONOUT
+F43E DB 1B	in SECONDS
+F440 CD EB F0	call printdecimal (F0EBH)
+F443 3E 00	mvi a 0
+F445 C9		ret
+
+F446	settime
+F446 23		inx h
+F447 7E		mov a,m
+F448 FE 20	cpi ' '
+F44A CA 46 F4	jz settime (F446H)
+F44D FE 0A	cpi LF
+F44F CA 94 F4	jz sterr (F494H)
+F452 FE 0D	cpi CR
+F454 CA 94 F4	jz sterr (F494H)
+F457 46		mov b,m
+F458 23		inx h
+F459 4E		mov c,m
+F45A CD 87 F4	call stime1 (F487H)
+F45D 32 F8 EF	sta TMPHOURS (EFF8H)
+F460 23		inx h
+F461 7E		mov a,m
+F462 FE 3A	cpi ':'
+F464 C2 94 F4	jnz sterr (F494H)
+F467 23		inx h
+F468 46		mov b,m
+F469 23		inx h
+F46A 4E		mov c,m
+F46B CD 87 F4	call stime1 (F487H)
+F46E 32 F7 EF	sta TMPMINUTES (EFF7H)
+F471 23		inx h
+F472 7E		mov a,m
+F473 FE 3A	cpi ':'
+F475 C2 94 F4	jnz sterr (F494H)
+F478 23		inx h
+F479 46		mov b,m
+F47A 23		inx h
+F47B 4E		mov c,m
+F47C CD 87 F4	call stime1 (F487H)
+F47F 32 F6 EF	sta TMPSECONDS (EFF6H)
+F482 D3 1B	out 0x1b
+F484 3E 00	mvi a 0
+F486 C9		ret
+
+F487	stime1
+F487 78		mov a,b
+F488 E6 0F	ani 0x0f
+F48A 07		rlc
+F48B 07		rlc
+F48C 07		rlc
+F48D 07		rlc
+F48E 47		mov b,a
+F48F 79		mov a,c
+F490 E6 0F	ani 0x0f
+F492 B0		ora b
+F493 C9		ret
+
+F494	sterr
+F494 3E 01	mvi a 1
+F496 C9		ret
+
+F497	loadfile
+F497 01 FE EF	lxi b BUFSTART (EFFEH)
+F49A 3E 00	mvi a 0x00
+F49C 02		stax b
+F49D 03		inx b
+F49E 02		stax b
+F49F CD 85 F1	call getFilename (F185H)
+F4A2 FE 01	cpi 0x01
+F4A4 C8		rz
+F4A5 21 E7 F4	lxi h load_msg1 (F4E7H)
+F4A8 CD 8B F0	call print (F08BH)
+F4AB 21 FE EF	lxi h BUFSTART (EFFEH)
+F4AE 7E		mov a,m
+F4AF CD CA F0	call printascii (F0CAH)
+F4B2 23		inx h
+F4B3 7E		mov a,m
+F4B4 CD CA F0	call printascii (F0CAH)
+F4B7 21 07 F5	lxi h load_msg2 (F507H)
+F4BA CD 8B F0	call print (F08BH)
+F4BD CD 0D F1	call getline (F10DH)
+F4C0 21 9E EF	lxi h LINEIN (EF9EH)
+F4C3 7E		mov a,m
+F4C4 FE 0A	cpi LF
+F4C6 CA E0 F4	jz lf1 (F4E0H)
+F4C9 FE 0D	cpi CR
+F4CB CA E0 F4	jz lf1 (F4E0H)
+F4CE CD D3 F1	call getAddress (F1D3H)
+F4D1 FE 01	cpi 0x01
+F4D3 C8		rz
+F4D4 21 FA EF	lxi h BUFTEMP (EFFAH)
+F4D7 01 FE EF	lxi b BUFSTART (EFFEH)
+F4DA 7E		mov a,m
+F4DB 02		stax b
+F4DC 23		inx h
+F4DD 03		inx b
+F4DE 7E		mov a,m
+F4DF 02		stax b
+
+F4E0	lf1
+F4E0 3E 03	mvi a 0x03
+F4E2 D3 20	out DISK
+F4E4 3E 00	mvi a 0x00
+F4E6 C9		ret
+
+F4E7	load_msg1
+F4E7  0D	DB  CR
+F4E8  0A	DB  LF
+F4E9		DB  "Enter 4 digit Start address ("
+F506  FF	DB  EOL
+
+F507	load_msg2
+F507		DB  "H) or <enter>: "
+F516  FF	DB  EOL
+
+F517	savefile
+F517 01 FE EF	lxi b BUFSTART (EFFEH)
+F51A 3E 00	mvi a 0x00
+F51C 02		stax b
+F51D 03		inx b
+F51E 02		stax b
+F51F 01 FC EF	lxi b BUFEND (EFFCH)
+F522 3E 01	mvi a 0x01
+F524 02		stax b
+F525 3D		dcr a
+F526 03		inx b
+F527 02		stax b
+F528 CD 85 F1	call getFilename (F185H)
+F52B FE 01	cpi 0x01
+F52D C8		rz
+F52E 21 AB F5	lxi h save_msg1 (F5ABH)
+F531 CD 8B F0	call print (F08BH)
+F534 21 FE EF	lxi h BUFSTART (EFFEH)
+F537 7E		mov a,m
+F538 CD CA F0	call printascii (F0CAH)
+F53B 23		inx h
+F53C 7E		mov a,m
+F53D CD CA F0	call printascii (F0CAH)
+F540 21 CB F5	lxi h save_msg2 (F5CBH)
+F543 CD 8B F0	call print (F08BH)
+F546 CD 0D F1	call getline (F10DH)
+F549 21 9E EF	lxi h LINEIN (EF9EH)
+F54C 7E		mov a,m
+F54D FE 0A	cpi LF
+F54F CA 69 F5	jz sf1 (F569H)
+F552 FE 0D	cpi CR
+F554 CA 69 F5	jz sf1 (F569H)
+F557 CD D3 F1	call getAddress (F1D3H)
+F55A FE 01	cpi 0x01
+F55C C8		rz
+F55D 21 FA EF	lxi h BUFTEMP (EFFAH)
+F560 01 FE EF	lxi b BUFSTART (EFFEH)
+F563 7E		mov a,m
+F564 02		stax b
+F565 23		inx h
+F566 03		inx b
+F567 7E		mov a,m
+F568 02		stax b
+
+F569	sf1
+F569 21 DB F5	lxi h save_msg3 (F5DBH)
+F56C CD 8B F0	call print (F08BH)
+F56F 21 FC EF	lxi h BUFEND (EFFCH)
+F572 7E		mov a,m
+F573 CD CA F0	call printascii (F0CAH)
+F576 23		inx h
+F577 7E		mov a,m
+F578 CD CA F0	call printascii (F0CAH)
+F57B 21 F9 F5	lxi h save_msg4 (F5F9H)
+F57E CD 8B F0	call print (F08BH)
+F581 CD 0D F1	call getline (F10DH)
+F584 21 9E EF	lxi h LINEIN (EF9EH)
+F587 7E		mov a,m
+F588 FE 0A	cpi LF
+F58A CA A4 F5	jz sf2 (F5A4H)
+F58D FE 0D	cpi CR
+F58F CA A4 F5	jz sf2 (F5A4H)
+F592 CD D3 F1	call getAddress (F1D3H)
+F595 FE 01	cpi 0x01
+F597 C8		rz
+F598 21 FA EF	lxi h BUFTEMP (EFFAH)
+F59B 01 FC EF	lxi b BUFEND (EFFCH)
+F59E 7E		mov a,m
+F59F 02		stax b
+F5A0 23		inx h
+F5A1 03		inx b
+F5A2 7E		mov a,m
+F5A3 02		stax b
+
+F5A4	sf2
+F5A4 3E 02	mvi a 0x02
+F5A6 D3 20	out DISK
+F5A8 3E 00	mvi a 0x00
+F5AA C9		ret
+
+F5AB	save_msg1
+F5AB  0D	DB  CR
+F5AC  0A	DB  LF
+F5AD		DB  "Enter 4 digit Start address ("
+F5CA  FF	DB  EOL
+
+F5CB	save_msg2
+F5CB		DB  "H) or <enter>: "
+F5DA  FF	DB  EOL
+
+F5DB	save_msg3
+F5DB  0D	DB  CR
+F5DC  0A	DB  LF
+F5DD		DB  "Enter 4 digit End address ("
+F5F8  FF	DB  EOL
+
+F5F9	save_msg4
+F5F9		DB  "H) or <enter>: "
+F608  FF	DB  EOL
+
+F609	showDir
+F609 3E 0D	mvi a CR
+F60B D3 11	out CONOUT
+F60D 3E 0A	mvi a LF
+F60F D3 11	out CONOUT
+F611 3E 01	mvi a 0x01
+F613 D3 20	out DISK
+F615 3E 00	mvi a 0x00
+F617 C9		ret
+
+F618	delete
+F618 CD 85 F1	call getFilename (F185H)
+F61B FE 01	cpi 0x01
+F61D C8		rz
+F61E 3E 04	mvi a 0x04
+F620 D3 20	out DISK
+F622 3E 00	mvi a 0x00
+F624 C9		ret
+
+F625	mon
+F625 21 2D F7	lxi h mon_banner_msg (F72DH)
+F628 CD 8B F0	call print (F08BH)
+F62B 3E 00	mvi a 0
+F62D 67		mov h,a
+F62E 6F		mov l,a
+
+F62F	mon1
+F62F 3E 0D	mvi a CR
+F631 D3 11	out CONOUT
+F633 3E 0A	mvi a LF
+F635 D3 11	out CONOUT
+F637 CD 20 F7	call mon_showAddress (F720H)
+F63A 7E		mov a,m
+F63B CD CA F0	call printascii (F0CAH)
+F63E 3E 20	mvi a ' '
+F640 D3 11	out CONOUT
+
+F642	mon1a
+F642 CD 14 F7	call mon_getByte (F714H)
+F645 FE 78	cpi 'x'
+F647 C2 53 F6	jnz mon2 (F653H)
+F64A 21 4B F7	lxi h mon_exit_msg (F74BH)
+F64D CD 8B F0	call print (F08BH)
+F650 3E 00	mvi a 0
+F652 C9		ret
+
+F653	mon2
+F653 FE 0D	cpi CR
+F655 C2 5C F6	jnz mon3 (F65CH)
+F658 23		inx h
+F659 C3 2F F6	jmp mon1 (F62FH)
+
+F65C	mon3
+F65C FE 6E	cpi 'n'
+F65E C2 65 F6	jnz mon4 (F665H)
+F661 23		inx h
+F662 C3 2F F6	jmp mon1 (F62FH)
+
+F665	mon4
+F665 FE 62	cpi 'b'
+F667 C2 6E F6	jnz mon5 (F66EH)
+F66A 2B		dcx h
+F66B C3 2F F6	jmp mon1 (F62FH)
+
+F66E	mon5
+F66E FE 2E	cpi '.'
+F670 C2 83 F6	jnz mon6 (F683H)
+
+F673	mon5a
+F673 CD 14 F7	call mon_getByte (F714H)
+F676 47		mov b,a
+F677 CD 14 F7	call mon_getByte (F714H)
+F67A 4F		mov c,a
+F67B CD AA F0	call a2b (F0AAH)
+F67E 77		mov m,a
+F67F 23		inx h
+F680 C3 2F F6	jmp mon1 (F62FH)
+
+F683	mon6
+F683 FE 6D	cpi 'm'
+F685 C2 A3 F6	jnz mon7 (F6A3H)
+F688 CD 14 F7	call mon_getByte (F714H)
+F68B 47		mov b,a
+F68C CD 14 F7	call mon_getByte (F714H)
+F68F 4F		mov c,a
+F690 CD AA F0	call a2b (F0AAH)
+F693 67		mov h,a
+F694 CD 14 F7	call mon_getByte (F714H)
+F697 47		mov b,a
+F698 CD 14 F7	call mon_getByte (F714H)
+F69B 4F		mov c,a
+F69C CD AA F0	call a2b (F0AAH)
+F69F 6F		mov l,a
+F6A0 C3 2F F6	jmp mon1 (F62FH)
+
+F6A3	mon7
+F6A3 FE 67	cpi 'g'
+F6A5 C2 C1 F6	jnz mon8 (F6C1H)
+F6A8 CD 14 F7	call mon_getByte (F714H)
+F6AB 47		mov b,a
+F6AC CD 14 F7	call mon_getByte (F714H)
+F6AF 4F		mov c,a
+F6B0 CD AA F0	call a2b (F0AAH)
+F6B3 67		mov h,a
+F6B4 CD 14 F7	call mon_getByte (F714H)
+F6B7 47		mov b,a
+F6B8 CD 14 F7	call mon_getByte (F714H)
+F6BB 4F		mov c,a
+F6BC CD AA F0	call a2b (F0AAH)
+F6BF 6F		mov l,a
+F6C0 E9		pchl
+
+F6C1	mon8
+F6C1 FE 64	cpi 'd'
+F6C3 C2 11 F7	jnz mon9 (F711H)
+F6C6 E5		push h
+F6C7 CD 14 F7	call mon_getByte (F714H)
+F6CA 47		mov b,a
+F6CB CD 14 F7	call mon_getByte (F714H)
+F6CE 4F		mov c,a
+F6CF CD AA F0	call a2b (F0AAH)
+F6D2 67		mov h,a
+F6D3 CD 14 F7	call mon_getByte (F714H)
+F6D6 47		mov b,a
+F6D7 CD 14 F7	call mon_getByte (F714H)
+F6DA 4F		mov c,a
+F6DB CD AA F0	call a2b (F0AAH)
+F6DE 6F		mov l,a
+F6DF 3E 0D	mvi a CR
+F6E1 D3 11	out CONOUT
+F6E3 3E 0A	mvi a LF
+F6E5 D3 11	out CONOUT
+F6E7 16 10	mvi d 16
+
+F6E9	mon8a
+F6E9 0E 10	mvi c 16
+
+F6EB	mon8b
+F6EB CD 20 F7	call mon_showAddress (F720H)
+
+F6EE	mon8c
+F6EE 3E 20	mvi a ' '
+F6F0 D3 11	out CONOUT
+F6F2 7E		mov a,m
+F6F3 CD CA F0	call printascii (F0CAH)
+F6F6 23		inx h
+F6F7 0D		dcr c
+F6F8 79		mov a,c
+F6F9 FE 00	cpi 0
+F6FB C2 EE F6	jnz mon8c (F6EEH)
+F6FE 3E 0D	mvi a CR
+F700 D3 11	out CONOUT
+F702 3E 0A	mvi a LF
+F704 D3 11	out CONOUT
+F706 15		dcr d
+F707 7A		mov a,d
+F708 FE 00	cpi 0
+F70A C2 E9 F6	jnz mon8a (F6E9H)
+F70D E1		pop h
+F70E C3 2F F6	jmp mon1 (F62FH)
+
+F711	mon9
+
+F711	mon_err
+F711 C3 42 F6	jmp mon1a (F642H)
+
+F714	mon_getByte
+F714 DB 10	in CONIN_STAT
+F716 FE 00	cpi 0
+F718 CA 14 F7	jz mon_getByte (F714H)
+F71B DB 11	in CONIN
+F71D D3 11	out CONOUT
+F71F C9		ret
+
+F720	mon_showAddress
+F720 7C		mov a,h
+F721 CD CA F0	call printascii (F0CAH)
+F724 7D		mov a,l
+F725 CD CA F0	call printascii (F0CAH)
+F728 3E 20	mvi a ' '
+F72A D3 11	out CONOUT
+F72C C9		ret
+
+F72D	mon_banner_msg
+F72D  0D	DB  CR
+F72E  0A	DB  LF
+F72F		DB  "OS/80 Resident ML Monitor"
+F748  0D	DB  CR
+F749  0A	DB  LF
+F74A  FF	DB  EOL
+
+F74B	mon_exit_msg
+F74B  0D	DB  CR
+F74C  0A	DB  LF
+F74D		DB  "Leaving ML Monitor"
+F75F  0D	DB  CR
+F760  0A	DB  LF
+F761  FF	DB  EOL
+
+Labels Used: 118
 
 CR     	000DH
 LF     	000AH
@@ -970,104 +1059,114 @@ CONIN     	0011H
 CONIN_STAT     	0010H
 DISK     	0020H
 PRINTER     	0012H
+HOURS     	001DH
+MINUTES     	001CH
+SECONDS     	001BH
 PROGSTART     	F000H
 BUFSTART     	EFFEH
 BUFEND     	EFFCH
 BUFTEMP     	EFFAH
+TMPHOURS     	EFF8H
+TMPMINUTES     	EFF7H
+TMPSECONDS     	EFF6H
 LINEIN     	EF9EH
 FILENAME     	EF4CH
 TMPNAME     	EF3CH
 STACK     	EEDCH
 coldstart     	F000H
 warmstart     	F006H
-test1a     	F00BH
-loop1     	F020H
-signon_msg     	F045H
-errormsg     	F082H
-print     	F088H
-prompt     	F092H
-a2b     	F0A7H
-a2b_1     	F0B1H
-a2b_2     	F0C3H
-printascii     	F0C7H
-printascii_1     	F0D7H
-printascii_2     	F0E5H
-printdecimal     	F0E8H
-divide     	F0FBH
-up     	F0FDH
-down     	F105H
-getline     	F10AH
-gl0     	F10FH
-gl1     	F11FH
-gl2     	F126H
-gl2a     	F14EH
-gl3     	F164H
-discard_line     	F16BH
-getFilename     	F182H
-gf1     	F186H
-gf2     	F19FH
-gf3     	F1B0H
-get_filename_error     	F1B4H
-gfn_message1     	F1BDH
-getAddress     	F1D0H
-gsa0     	F1D5H
-gsa1     	F1E5H
-gsa2     	F1F4H
-gsa_bad_address     	F20DH
-cmdtest     	F234H
-test1     	F234H
-test2     	F253H
-test3     	F26DH
-test4     	F295H
-test5     	F2BDH
-test6     	F2DEH
-test7     	F2F8H
-test8     	F312H
-test9     	F32CH
-test10     	F354H
-test11     	F375H
-fail     	F375H
-showhelp     	F378H
-HELPMSG     	F381H
-printFile     	F3D0H
-pfloop     	F3D8H
-pfend     	F3E4H
-showtime     	F3E5H
-loadfile     	F407H
-lf1     	F450H
-load_msg1     	F457H
-load_msg2     	F477H
-savefile     	F487H
-sf1     	F4D9H
-sf2     	F514H
-save_msg1     	F51BH
-save_msg2     	F53BH
-save_msg3     	F54BH
-save_msg4     	F569H
-showDir     	F579H
-delete     	F588H
-mon     	F595H
-mon1     	F59FH
-mon1a     	F5B2H
-mon2     	F5C3H
-mon3     	F5CCH
-mon4     	F5D5H
-mon5     	F5DEH
-mon5a     	F5E3H
-mon6     	F5F3H
-mon7     	F613H
-mon8     	F631H
-mon8a     	F659H
-mon8b     	F65BH
-mon8c     	F65EH
-mon9     	F681H
-mon_err     	F681H
-mon_getByte     	F684H
-mon_showAddress     	F690H
-mon_banner_msg     	F69DH
-mon_exit_msg     	F6BBH
+test1a     	F00EH
+loop1     	F023H
+signon_msg     	F048H
+errormsg     	F085H
+print     	F08BH
+prompt     	F095H
+a2b     	F0AAH
+a2b_1     	F0B4H
+a2b_2     	F0C6H
+printascii     	F0CAH
+printascii_1     	F0DAH
+printascii_2     	F0E8H
+printdecimal     	F0EBH
+divide     	F0FEH
+up     	F100H
+down     	F108H
+getline     	F10DH
+gl0     	F112H
+gl1     	F122H
+gl2     	F129H
+gl2a     	F151H
+gl3     	F167H
+discard_line     	F16EH
+getFilename     	F185H
+gf1     	F189H
+gf2     	F1A2H
+gf3     	F1B3H
+get_filename_error     	F1B7H
+gfn_message1     	F1C0H
+getAddress     	F1D3H
+gsa0     	F1D8H
+gsa1     	F1E8H
+gsa2     	F1F7H
+gsa_bad_address     	F210H
+cmdtest     	F237H
+test1     	F237H
+test2     	F256H
+test3     	F270H
+test4     	F298H
+test5     	F2C0H
+test6     	F2E1H
+test7     	F2FBH
+test8     	F315H
+test9     	F32FH
+test10     	F357H
+test11     	F378H
+test12     	F3A7H
+fail     	F3A7H
+showhelp     	F3AAH
+HELPMSG     	F3B3H
+printFile     	F40FH
+pfloop     	F417H
+pfend     	F423H
+showtime     	F424H
+settime     	F446H
+stime1     	F487H
+sterr     	F494H
+loadfile     	F497H
+lf1     	F4E0H
+load_msg1     	F4E7H
+load_msg2     	F507H
+savefile     	F517H
+sf1     	F569H
+sf2     	F5A4H
+save_msg1     	F5ABH
+save_msg2     	F5CBH
+save_msg3     	F5DBH
+save_msg4     	F5F9H
+showDir     	F609H
+delete     	F618H
+mon     	F625H
+mon1     	F62FH
+mon1a     	F642H
+mon2     	F653H
+mon3     	F65CH
+mon4     	F665H
+mon5     	F66EH
+mon5a     	F673H
+mon6     	F683H
+mon7     	F6A3H
+mon8     	F6C1H
+mon8a     	F6E9H
+mon8b     	F6EBH
+mon8c     	F6EEH
+mon9     	F711H
+mon_err     	F711H
+mon_getByte     	F714H
+mon_showAddress     	F720H
+mon_banner_msg     	F72DH
+mon_exit_msg     	F74BH
 
-Last address used is F6D1H (63185 decimal)
+Last address used is F761H (63329 decimal)
 
 End of assembly.
 
