@@ -1,5 +1,8 @@
 ; os80.asm - Disk Operating System for the teensy80
 ;
+; This is an SDCARD based OS. Instead of disks, we use an SD card on the teensy.
+; The driver routines (BIOS) is in drivers.h of the teensy source code
+; The source and this OS are tightly coupled.
 ;
 ; (some of this comes from my earlier work from 1986 on)
 ; (C) k theis  1986-2021 <theis.kurt@gmail.com>
@@ -13,10 +16,10 @@
 ; save		save buffer to disk
 ; dir		show the disk directory
 ; del		delete a file on the SD card
-; run		execute program in memory at 0x00
+; run		execute program in memory at 0x0000
 ; print		send ascii data in ram buffer to serial printer
-; time		display HH:MM:SS from teensy real time clock
-; settime	set the real time clock hh:mm:ss
+; time		display HH:MM:SS from teensy real time clock (does not show days/month/year)
+; stime		set the real time clock hh:mm:ss (does not set day/month/years)
 ; help		show commands
 
 ; TODO: 
@@ -38,7 +41,7 @@ CR		EQU	0x0d
 LF		EQU	0x0a
 BS		EQU	0x08		; backspace (^H)
 DEL		EQU	0x7f		; delete
-BELL		EQU	0x07		; BELL
+BELL		EQU	0x07		; ascii BELL
 EOL		EQU	0xff		; end of line for DB/print
 NUL		EQU	0x00		; used in printer routine
 CONOUT		EQU	0x11
@@ -60,11 +63,9 @@ PROGSTART	EQU	0xf000		; start of OS/80 program code
 BUFSTART	EQU	0xeffe		; *2 byte hi:lo start address
 BUFEND		EQU	0xeffc		; *2 byte hi:lo end address
 BUFTEMP		EQU	0xeffa		; 2 byte hi:lo buffer
-RTCHOURS 	EQU	0xeff8		; RTC Hours 2 bytes
-RTCMINUTES	EQU	0xeff6		; RTC Minutes 2 bytes
-RTCSECONDS	EQU	0xeff4		; RTC Seconds 2 bytes
-
-; unused	EQU	0xeff4		; 2 byte
+RTCHOURS 	EQU	0xeff8		; *RTC Hours 2 bytes
+RTCMINUTES	EQU	0xeff6		; *RTC Minutes 2 bytes
+RTCSECONDS	EQU	0xeff4		; *RTC Seconds 2 bytes
 ; unused	EQU	0xeff2		; 2 byte
 ; unused	EQU	0xeff0		; 2 byte
 LINEIN		EQU	0xef9e		; 82 byte linein buffer (80 bytes + 2 guard)
@@ -260,6 +261,7 @@ printdecimal	; convert value in A to decimal, print it
 		
 ;--------------------------------------------
 ;------------ Divide by 10 ------------------
+;--------------------------------------------
 
 divide		; divide number in HL by B. Dividend in HL, divisor in B
 		mvi c 0x08		; counter
@@ -459,7 +461,7 @@ gsa_bad_address DB CR  DB LF DB "Value must be 4 digit hex (ie. FA30)" DB EOL
 ;---------- Command Tests ----------
 ;-----------------------------------
 
-cmdtest		; command interpreter: look for command names
+cmdtest		; command interpreter: look for command names (this could be shortened)
 
 test1	; halt		halt the processor, jump to hardware monitor routine
 		lxi h	LINEIN
@@ -611,7 +613,7 @@ test8	; mon		ml monitor
 		jnz	test9
 		jmp	mon		; run monitor program		
 
-test9		; print - send ascii bytes to printer port
+test9	; print 	send ascii bytes to printer port
 		lxi h	LINEIN
 		mvi a	'p'
 		cmp m
@@ -635,7 +637,7 @@ test9		; print - send ascii bytes to printer port
 		jmp	printFile	; send ascii file to serial printer
 
 
-test10		; time - output current real time to console
+test10	; time 		output current real time to console
 		lxi h	LINEIN
 		mvi a	't'
 		cmp	m
@@ -655,7 +657,7 @@ test10		; time - output current real time to console
 		jmp	showtime
 
 
-test11		; stime - set the real time clock 
+test11	; stime 	set the real time clock (hh:mm:ss, no month/day/year)
 		lxi h	LINEIN
 		mvi a	's'
 		cmp	m
@@ -773,6 +775,7 @@ showtime	; display current rtc time on console (use settime to initially
 ;-----------------------------
 settime		; read the next 8 bytes, save into the RTC of the teensy
 		; this routine reads HH:MM:SS and saves in RAM as two digits
+		; NOTE that the ':' between hrs/min and min/sec are REQUIRED
 		inx h		;; point to next byte in buffer
 		mov a,m
 		cpi	' '
