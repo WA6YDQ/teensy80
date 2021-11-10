@@ -12,33 +12,35 @@
  *  0x0a (disk device octal 12, input  - Read data from disk)
  *  
  *  
- * Rest of I/O ports:
- *  0x (status port 1, input tape reader, output punch device (paper tape))
- *  0x (data port 1, input tape reader, output punch device (paper tape))
- *  0x12 (input port, LINE32)
- *  0x13 (input port, LINE31)
- *  0x14 (output port, LINE33)
- *  0x15 (output port, LINE34)
+ * Emulated I/O ports:
+ *  0x(unused) (status port 1, input tape reader, output punch device (paper tape))
+ *  0x(unused) (data port 1, input tape reader, output punch device (paper tape))
+ *  0x12 (input port, teensy hardware LINE32)
+ *  0x13 (input port, teensy hardware LINE31)
+ *  0x14 (output port, teensy hardware LINE33)
+ *  0x15 (output port, teensy hardware LINE34)
  *  0x16 (output port, TIMER calls 1-255 msec timer delay, blocking)
  *  0x17 (output port, TIMER calls 10-2.55 seconds timer delay, blocking)
  *  0x18 (output port, TONE enables audio tone, 10-2550hz, on TONEPIN)
- *  0x19 (output port, TONE disables tone on TONEPIN);
- *  0x1a (output port, BEEP (1kc for 250msec duration)
- *  0x1b (output, set time from memory locations)
- *  0x1b (input, time() - return seconds 
- *  0x1c (input, time() - return minutes
- *  0x1d (input, time() - return hours
+ *  0x19 (output port, TONE disables tone on TONEPIN)
+ *  0x1a (output port, BEEP (1kc for 250msec duration on TONEPIN)
+ *  0x1b (output, set teensy RTC time from RAM memory locations)
+ *  0x1b (input, time() - return seconds to A
+ *  0x1c (input, time() - return minutes to A
+ *  0x1d (input, time() - return hours to A
  *  0x1f (output port, serial output (printer)
- *  0xfe (output port, bank selection (0-6)
+ *  0xfe (output port, bank selection (0-6) (not fully implimented, don't use)
  *  
  * 
  *  
- *  (see https://github.com/simh/simh/blob/master/ALTAIR/altair_dsk.c for full specs)
+ *  (see https://github.com/simh/simh/blob/master/ALTAIR/altair_dsk.c for full altair disk specs)
  *  
  */
 
 extern uint8_t *RAM;
 extern uint8_t BANK;
+
+
 
 /* show files on the SD card */
 void printDir(File dir, int numTabs) {
@@ -67,7 +69,11 @@ void printDir(File dir, int numTabs) {
 }
 
 
-/* input routines */
+
+
+/* ************************ */
+/*      input routines      */
+/* ************************ */
 uint8_t input(uint8_t addr) {
 
     // Altair serial console STATUS port - return 0 or number of chars available
@@ -113,8 +119,9 @@ uint8_t input(uint8_t addr) {
 
 
 
-
+/* **************************************************** */
 /* output routines: send a value to a specified address */
+/* **************************************************** */
 void output(uint8_t val, uint8_t addr) {
 
 
@@ -191,22 +198,8 @@ void output(uint8_t val, uint8_t addr) {
         MM = (RAM[0xeff7]*10) + RAM[0xeff6];
         SS = (RAM[0xeff5]*10) + RAM[0xeff4];
 
-        /*
-        Console.print("\r\ntime set to "); 
-        sprintf(TEMP,"%d-%d-%d\n\r",HH,MM,SS);
-        Console.print(TEMP);
-        */
-
         // set the time (but not the date (yet))
         setTime(HH,MM,SS,1,1,2021);
-
-        /*
-        memset(TEMP,0,sizeof(TEMP));
-        //time_t t=now();
-        sprintf(TEMP,"%d:%d:%d\r\n",hour(),minute(),second());
-        Console.print("\r\ntime is ");
-        Console.print(TEMP);
-        */
        
         return;
     }
@@ -221,7 +214,7 @@ void output(uint8_t val, uint8_t addr) {
 
     /* disk emulation routines
      * since we lack dedicated hardware for a disk drive interface, we just use hi-level
-     * routines for disk operations.
+     * routines for SDCARD's instead of disk operations.
     */
 
     /* the following addresses are defined in the OS/80 source code (os80.asm)*/
