@@ -1,7 +1,7 @@
 
 Reading from source file os80.asm
 
-Number of tokens found in file is 1533
+Number of tokens found in file is 1539
 
 CR	EQU	0x0d
 LF	EQU	0x0a
@@ -866,7 +866,7 @@ F622 3E 00	mvi a 0x00
 F624 C9		ret
 
 F625	mon
-F625 21 2D F7	lxi h mon_banner_msg (F72DH)
+F625 21 35 F7	lxi h mon_banner_msg (F735H)
 F628 CD 8B F0	call print (F08BH)
 F62B 3E 00	mvi a 0
 F62D 67		mov h,a
@@ -877,17 +877,17 @@ F62F 3E 0D	mvi a CR
 F631 D3 11	out CONOUT
 F633 3E 0A	mvi a LF
 F635 D3 11	out CONOUT
-F637 CD 20 F7	call mon_showAddress (F720H)
+F637 CD 28 F7	call mon_showAddress (F728H)
 F63A 7E		mov a,m
 F63B CD CA F0	call printascii (F0CAH)
 F63E 3E 20	mvi a ' '
 F640 D3 11	out CONOUT
 
 F642	mon1a
-F642 CD 14 F7	call mon_getByte (F714H)
+F642 CD 1C F7	call mon_getByte (F71CH)
 F645 FE 78	cpi 'x'
 F647 C2 53 F6	jnz mon2 (F653H)
-F64A 21 4B F7	lxi h mon_exit_msg (F74BH)
+F64A 21 53 F7	lxi h mon_exit_msg (F753H)
 F64D CD 8B F0	call print (F08BH)
 F650 3E 00	mvi a 0
 F652 C9		ret
@@ -915,9 +915,9 @@ F66E FE 2E	cpi '.'
 F670 C2 83 F6	jnz mon6 (F683H)
 
 F673	mon5a
-F673 CD 14 F7	call mon_getByte (F714H)
+F673 CD 1C F7	call mon_getByte (F71CH)
 F676 47		mov b,a
-F677 CD 14 F7	call mon_getByte (F714H)
+F677 CD 1C F7	call mon_getByte (F71CH)
 F67A 4F		mov c,a
 F67B CD AA F0	call a2b (F0AAH)
 F67E 77		mov m,a
@@ -927,15 +927,15 @@ F680 C3 2F F6	jmp mon1 (F62FH)
 F683	mon6
 F683 FE 6D	cpi 'm'
 F685 C2 A3 F6	jnz mon7 (F6A3H)
-F688 CD 14 F7	call mon_getByte (F714H)
+F688 CD 1C F7	call mon_getByte (F71CH)
 F68B 47		mov b,a
-F68C CD 14 F7	call mon_getByte (F714H)
+F68C CD 1C F7	call mon_getByte (F71CH)
 F68F 4F		mov c,a
 F690 CD AA F0	call a2b (F0AAH)
 F693 67		mov h,a
-F694 CD 14 F7	call mon_getByte (F714H)
+F694 CD 1C F7	call mon_getByte (F71CH)
 F697 47		mov b,a
-F698 CD 14 F7	call mon_getByte (F714H)
+F698 CD 1C F7	call mon_getByte (F71CH)
 F69B 4F		mov c,a
 F69C CD AA F0	call a2b (F0AAH)
 F69F 6F		mov l,a
@@ -944,15 +944,15 @@ F6A0 C3 2F F6	jmp mon1 (F62FH)
 F6A3	mon7
 F6A3 FE 67	cpi 'g'
 F6A5 C2 C1 F6	jnz mon8 (F6C1H)
-F6A8 CD 14 F7	call mon_getByte (F714H)
+F6A8 CD 1C F7	call mon_getByte (F71CH)
 F6AB 47		mov b,a
-F6AC CD 14 F7	call mon_getByte (F714H)
+F6AC CD 1C F7	call mon_getByte (F71CH)
 F6AF 4F		mov c,a
 F6B0 CD AA F0	call a2b (F0AAH)
 F6B3 67		mov h,a
-F6B4 CD 14 F7	call mon_getByte (F714H)
+F6B4 CD 1C F7	call mon_getByte (F71CH)
 F6B7 47		mov b,a
-F6B8 CD 14 F7	call mon_getByte (F714H)
+F6B8 CD 1C F7	call mon_getByte (F71CH)
 F6BB 4F		mov c,a
 F6BC CD AA F0	call a2b (F0AAH)
 F6BF 6F		mov l,a
@@ -962,15 +962,15 @@ F6C1	mon8
 F6C1 FE 64	cpi 'd'
 F6C3 C2 11 F7	jnz mon9 (F711H)
 F6C6 E5		push h
-F6C7 CD 14 F7	call mon_getByte (F714H)
+F6C7 CD 1C F7	call mon_getByte (F71CH)
 F6CA 47		mov b,a
-F6CB CD 14 F7	call mon_getByte (F714H)
+F6CB CD 1C F7	call mon_getByte (F71CH)
 F6CE 4F		mov c,a
 F6CF CD AA F0	call a2b (F0AAH)
 F6D2 67		mov h,a
-F6D3 CD 14 F7	call mon_getByte (F714H)
+F6D3 CD 1C F7	call mon_getByte (F71CH)
 F6D6 47		mov b,a
-F6D7 CD 14 F7	call mon_getByte (F714H)
+F6D7 CD 1C F7	call mon_getByte (F71CH)
 F6DA 4F		mov c,a
 F6DB CD AA F0	call a2b (F0AAH)
 F6DE 6F		mov l,a
@@ -984,7 +984,7 @@ F6E9	mon8a
 F6E9 0E 10	mvi c 16
 
 F6EB	mon8b
-F6EB CD 20 F7	call mon_showAddress (F720H)
+F6EB CD 28 F7	call mon_showAddress (F728H)
 
 F6EE	mon8c
 F6EE 3E 20	mvi a ' '
@@ -1010,40 +1010,44 @@ F70E C3 2F F6	jmp mon1 (F62FH)
 F711	mon9
 
 F711	mon_err
-F711 C3 42 F6	jmp mon1a (F642H)
+F711 E5		push h
+F712 21 85 F0	lxi h errormsg (F085H)
+F715 CD 8B F0	call print (F08BH)
+F718 E1		pop h
+F719 C3 42 F6	jmp mon1a (F642H)
 
-F714	mon_getByte
-F714 DB 10	in CONIN_STAT
-F716 FE 00	cpi 0
-F718 CA 14 F7	jz mon_getByte (F714H)
-F71B DB 11	in CONIN
-F71D D3 11	out CONOUT
-F71F C9		ret
+F71C	mon_getByte
+F71C DB 10	in CONIN_STAT
+F71E FE 00	cpi 0
+F720 CA 1C F7	jz mon_getByte (F71CH)
+F723 DB 11	in CONIN
+F725 D3 11	out CONOUT
+F727 C9		ret
 
-F720	mon_showAddress
-F720 7C		mov a,h
-F721 CD CA F0	call printascii (F0CAH)
-F724 7D		mov a,l
-F725 CD CA F0	call printascii (F0CAH)
-F728 3E 20	mvi a ' '
-F72A D3 11	out CONOUT
-F72C C9		ret
+F728	mon_showAddress
+F728 7C		mov a,h
+F729 CD CA F0	call printascii (F0CAH)
+F72C 7D		mov a,l
+F72D CD CA F0	call printascii (F0CAH)
+F730 3E 20	mvi a ' '
+F732 D3 11	out CONOUT
+F734 C9		ret
 
-F72D	mon_banner_msg
-F72D  0D	DB  CR
-F72E  0A	DB  LF
-F72F		DB  "OS/80 Resident ML Monitor"
-F748  0D	DB  CR
-F749  0A	DB  LF
-F74A  FF	DB  EOL
+F735	mon_banner_msg
+F735  0D	DB  CR
+F736  0A	DB  LF
+F737		DB  "OS/80 Resident ML Monitor"
+F750  0D	DB  CR
+F751  0A	DB  LF
+F752  FF	DB  EOL
 
-F74B	mon_exit_msg
-F74B  0D	DB  CR
-F74C  0A	DB  LF
-F74D		DB  "Leaving ML Monitor"
-F75F  0D	DB  CR
-F760  0A	DB  LF
-F761  FF	DB  EOL
+F753	mon_exit_msg
+F753  0D	DB  CR
+F754  0A	DB  LF
+F755		DB  "Leaving ML Monitor"
+F767  0D	DB  CR
+F768  0A	DB  LF
+F769  FF	DB  EOL
 
 Labels Used: 118
 
@@ -1161,12 +1165,12 @@ mon8b     	F6EBH
 mon8c     	F6EEH
 mon9     	F711H
 mon_err     	F711H
-mon_getByte     	F714H
-mon_showAddress     	F720H
-mon_banner_msg     	F72DH
-mon_exit_msg     	F74BH
+mon_getByte     	F71CH
+mon_showAddress     	F728H
+mon_banner_msg     	F735H
+mon_exit_msg     	F753H
 
-Last address used is F761H (63329 decimal)
+Last address used is F769H (63337 decimal)
 
 End of assembly.
 

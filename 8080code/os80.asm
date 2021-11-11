@@ -745,7 +745,7 @@ pfend		; finished w/file
 showtime	; display current rtc time on console (use settime to initially 
 		; set the clock, or 'time' will just show time since powerup).
 
-		mvi a	CR
+		mvi a	CR		; NOTE: this is 24 hour time
 		out	CONOUT
 		mvi a	LF
 		out	CONOUT
@@ -776,6 +776,8 @@ showtime	; display current rtc time on console (use settime to initially
 settime		; read the next 8 bytes, save into the RTC of the teensy
 		; this routine reads HH:MM:SS and saves in RAM as two digits
 		; NOTE that the ':' between hrs/min and min/sec are REQUIRED
+		; NOTE: this is 24 hour time
+
 		inx h		;; point to next byte in buffer
 		mov a,m
 		cpi	' '
@@ -1050,7 +1052,7 @@ showDir		; show disk directory
 		mvi a	LF
 		out	CONOUT
 		mvi a	0x01		;; command to show directory
-		out	DISK			;; call disk sub-system
+		out	DISK		;; call disk sub-system
 
 		mvi a	0x00		; return code
 		ret
@@ -1066,7 +1068,7 @@ delete		; delete a file on the SD card
 		rz				; filename load failed
 		;
 		mvi a	0x04			; command for delete
-		out	DISK
+		out	DISK			; call disk sub-system
 		;
 		mvi a	0x00			; return code
 		ret
@@ -1112,22 +1114,26 @@ mon1a		call	mon_getByte	; get char in A
 		mvi a	0
 		ret			; return w/0 exit code
 			
-mon2		cpi	CR		; show next address
+mon2		; NEXT
+		cpi	CR		; show next address
 		jnz	mon3
 		inx h
 		jmp	mon1
 
-mon3		cpi	'n'		; show next address
+mon3		; NEXT
+		cpi	'n'		; show next address
 		jnz	mon4
 		inx h
 		jmp	mon1
 
-mon4		cpi	'b'		; show previous address
+mon4		; BACK
+		cpi	'b'		; show previous address
 		jnz	mon5
 		dcx	h
 		jmp	mon1
 
-mon5		cpi	'.'		; enter byte at current address
+mon5		; ENTER
+		cpi	'.'		; enter byte at current address
 		jnz	mon6				
 		; get 2 ascii bytes, convert to binary, save in (HL)
 mon5a		call	mon_getByte
@@ -1140,7 +1146,8 @@ mon5a		call	mon_getByte
 		jmp	mon1
 		
 
-mon6		cpi	'm'		; change memory pointer: mf800
+mon6		; MEMORY
+		cpi	'm'		; change memory pointer: mf800
 		jnz	mon7		
 		call	mon_getByte
 		mov	b,a
@@ -1157,7 +1164,8 @@ mon6		cpi	'm'		; change memory pointer: mf800
 		mov l,a
 		jmp	mon1		; show new address, byte and continue
 
-mon7		cpi	'g'		; GOTO run a program: gf800
+mon7		; GOTO
+		cpi	'g'		; GOTO run a program: gf800
 		jnz	mon8
 		call	mon_getByte
 		mov b,a
@@ -1175,7 +1183,8 @@ mon7		cpi	'g'		; GOTO run a program: gf800
 		;
 		pchl			; start execution
 
-mon8		cpi	'd'		; display a page of memory d1200
+mon8		; DUMP
+		cpi	'd'		; display a page of memory d1200
 		jnz	mon9
 		push h			; save current hl
 		call	mon_getByte
@@ -1223,7 +1232,14 @@ mon8c		mvi a	' '
 		jmp	mon1		; back to command loop
 
 mon9
-mon_err		jmp	mon1a		
+mon_err		
+		push h
+		lxi h	errormsg	; unknown char - show error message
+		call	print
+		pop h
+		jmp	mon1a		
+
+
 
 
 mon_getByte	; get an ascii char, return value in A

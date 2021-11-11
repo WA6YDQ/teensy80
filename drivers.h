@@ -13,17 +13,16 @@
  *  
  *  
  * Emulated I/O ports:
- *  0x(unused) (status port 1, input tape reader, output punch device (paper tape))
- *  0x(unused) (data port 1, input tape reader, output punch device (paper tape))
- *  0x12 (input port, teensy hardware LINE32)
- *  0x13 (input port, teensy hardware LINE31)
- *  0x14 (output port, teensy hardware LINE33)
- *  0x15 (output port, teensy hardware LINE34)
- *  0x16 (output port, TIMER calls 1-255 msec timer delay, blocking)
- *  0x17 (output port, TIMER calls 10-2.55 seconds timer delay, blocking)
- *  0x18 (output port, TONE enables audio tone, 10-2550hz, on TONEPIN)
- *  0x19 (output port, TONE disables tone on TONEPIN)
- *  0x1a (output port, BEEP (1kc for 250msec duration on TONEPIN)
+ *  
+ *  0x12 (input, teensy hardware LINE32)
+ *  0x13 (input, teensy hardware LINE31)
+ *  0x14 (output, teensy hardware LINE33)
+ *  0x15 (output, teensy hardware LINE34)
+ *  0x16 (output, TIMER calls 1-255 msec timer delay, blocking)
+ *  0x17 (output, TIMER calls 10-2.55 seconds timer delay, blocking)
+ *  0x18 (output, TONE enables audio tone, 10-2550hz, on TONEPIN)
+ *  0x19 (output, TONE disables tone on TONEPIN)
+ *  0x1a (output, BEEP (1kc for 250msec duration on TONEPIN)
  *  0x1b (output, set teensy RTC time from RAM memory locations)
  *  0x1b (input, time() - return seconds to A
  *  0x1c (input, time() - return minutes to A
@@ -31,7 +30,8 @@
  *  0x1f (output port, serial output (printer)
  *  0xfe (output port, bank selection (0-6) (not fully implimented, don't use)
  *  
- * 
+ *  0x(unused) (status port 1, input tape reader, output punch device (paper tape))
+ *  0x(unused) (data port 1, input tape reader, output punch device (paper tape))
  *  
  *  (see https://github.com/simh/simh/blob/master/ALTAIR/altair_dsk.c for full altair disk specs)
  *  

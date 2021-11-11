@@ -2,7 +2,9 @@
  * 80sim.ino  - 8080 simulator for the teensy 4.1
  * (C) k theis <theis.kurt@gmail.com> 10/2021
  * 
- * 
+ * This circuit used 3 LED's for status display and 3 momentary N.O. push buttons
+ * for control. The LED's are RUN, HALT and ATTENTION. The push buttons are
+ * RESET, ABORT and LOAD.
  * 
  */
 
@@ -358,82 +360,53 @@ void reset() {      // reset the processor
     return;
 }
 
-void xmodem() {   /* load a file over the serial line, save to SD card */
-    char ch, block[135], checksum, filename[24];
-    uint8_t counter = 0;
-    #define EOT 0x04
-    #define NAK 0x15
-    #define ACK 0x06
-    #define SOH 0x01
-    
-    /* this routine is an XMODEM receiver */
 
-    Console.print("\r\nEnter filename: ");      // ask user for filename to save data to
-    while (!Console.available()) ;
-    while (Console.available()) {
+/*  The LOAD button allows the user to load an ascii file (*.bin) to the controllers
+ *  RAM memory. The start address will be 0x0000. The file must be uploaded via the 
+ *  console serial port. I use minicom under linux. The upload command is ascii-xfr
+ *  and must be configured as: 
+ *      ascii      /usr/bin/ascii-xfr -snv         Y    U    N       Y       N
+ *  Make sure if you use something different that is transparently sends ascii chars
+ *  without adding chars.
+ *  Pressing the LOAD button will start the load process. You then upload the .com
+ *  file. When the upload is complete press the LOAD button again. You will be returned
+ *  to the emulation and your program should run as expected.
+ */
+
+void loadFromSerial() {       // load a file over serial when LOAD button pressed
+    
+    char ch;
+    uint8_t cnt = 0;
+    uint8_t col = 0;
+
+    Console.print("\r\nReady to Load\n\r");
+    uint16_t address = 0;       // start address
+    if (Console.available())
+        while (Console.available()) continue;
+        
+    while (1) {
+        if (digitalRead(LOADPIN) == 0) break;       // done reading from serial
+        if (Console.available() == 0) continue;     // wait for input
         ch = Console.read();
-        if (ch == '\n') break;
-        filename[counter++] = ch;
-    }
-    while (Console.available());    // empty buffer
-    
-    File sdfile;
-    sdfile = SD.open(filename,FILE_WRITE);
-    if (!sdfile) {
-        Console.print("\r\nError creating"); Console.print(filename); Console.print("\r\n"); Console.flush();
-        return;
-    }
-
-rxLoop:
-    /* send NAK to start the transfer */
-    while (1) {     // timing loop - send NAK every 3 seconds until we time out or receive a char
-        Console.write(0x15);
-        elapsedMillis serialTimeout;
-        while (serialTimeout < 3000) {
-            if (Console.available()) break;   
-        }
-        if (serialTimeout > 3000) {
-            counter += 1;
-            if (counter > 15) {
-                Console.print("\r\nReceiver timed out\r\n");
-                goto timedOut;
-            }
-        }
-        if (Console.available()) {  // received a reply
-            goto gotAck;
-        }
+        RAM[address++] = ch;
         continue;
     }
-    timedOut:       // no response from sender
-    Console.print("\r\nNo response - stopping\r\n");
-    sdfile.close();
-    return;
-
-    gotAck:         // received a response, receive 132 bytes/packet
-    counter = 0;
-    while (counter < 132) {
-        if (Console.available())
-            ch = Console.read();
-            if (ch == EOT) goto rxDone;
-            block[counter++] = ch;
-    }
-    if (block[0] != SOH){        // bad block - send NAK
-        Console.write(NAK);
-        goto rxLoop;
-    }
-    /* save block */
-    for (int n=2; n<131; n++) sdfile.write(block[n]);
-    Console.write(ACK);
-    goto rxLoop;
-
-rxDone:     /* received EOT - transfer complete */
-    sdfile.flush();
-    sdfile.close();
-    delay(3000);        // let xmodem transmitter exit before sending any messages 
-    Console.print("\r\nTransfer Complete\r\n");
-    return;     // done
     
+    // done reading
+    if (Console.available())
+        while (Console.available()) continue;       // flush buffer
+    Console.print("\r\nRead "); Console.print(address); Console.print(" bytes\r\n");
+    
+    while (digitalRead(LOADPIN)==0) {       // wait until LOAD button released
+        delay(DEBOUNCE);
+        continue;
+    }
+    
+    delay(DEBOUNCE);
+    Console.print("\r\nLoading Complete\r\n");
+    return;
 }
+
 
 
 
@@ -628,11 +601,18 @@ void loop() {
         if (digitalRead(LOADPIN)==0) {          // load file from remote device
             digitalWrite(RUNLED,0);
             digitalWrite(HALTLED,1);
-            xmodem();
-            while (digitalRead(LOADPIN)==0) continue;
-            delay(DEBOUNCE);
+            Console.print("Loading File");
+            while (digitalRead(LOADPIN)==0) {
+                delay(DEBOUNCE);
+                continue;
+            }
+
+            loadFromSerial();
+            if (Console.available())
+                while (Console.available()) continue;   // flush buffer
             digitalWrite(RUNLED,1);
             digitalWrite(HALTLED,0);
+            reset();
             continue;
         }
 
