@@ -4,14 +4,21 @@
  * 
  * This circuit used 3 LED's for status display and 3 momentary N.O. push buttons
  * for control. The LED's are RUN, HALT and ATTENTION. The push buttons are
- * RESET, ABORT and LOAD.
+ * RESET, ABORT and LOAD. All other I/O is defined in the drivers.h file (the BIOS).
+ * This code runs on a teensy 4.1 microcontroller. This gives a simulated clock
+ * speed of around 60 MHz. All of the system ram (64k) is on-board the teensy. I use
+ * an SD card for the hard drive.
+ * 
+ * Since all memory is RAM, a program must be loaded before anything happens. At startup
+ * this program will look for a file called 'OS80.COM' on the SD drive. If found, it 
+ * will be loaded into RAM and run. OS80 is a small operating system for the 8080.
  * 
  */
 
 /* define the system */
 // #define TESTCODE_LOCAL     // uncomment to pre-load a test routine
 // #define TESTCODE_DISK      // uncomment to pre-load LOAD.COM from the SD card 
-//#define BANKDEF              // use banked memory if un-commented
+// #define BANKDEF            // use banked memory if un-commented (not implimented)
 
 #define DEBUG 0
 #define RAMSIZE 262144          // was 65536
@@ -30,8 +37,8 @@
 #define LOADPIN  4      // Pressing starts file transfer from remote device
 #define INTPIN   9      // Interrupt pin for 8080 (depends on INTE)
 
-#define RUNLED  5      // LED output (active 1) when disk activity happening
-#define HALTLED 6      // LED output (active 1) when any IO happening
+#define RUNLED  5      // LED output (active 1) when CPU is operational
+#define HALTLED 6      // LED output (active 1) when CPU halted
 #define ATTNLED 30     // LED output (active 1) when some routine needs to alert the user
 
 #define LINE31 31       // input line 0x13
@@ -51,8 +58,8 @@ const int chipSelect = BUILTIN_SDCARD;
 File loadFile;
 
 #include <string.h>
-#include "drivers.h"        // specific hardware drivers for 80sim
-#include "decoder.h"        // op code decoding
+#include "drivers.h"        // specific hardware drivers for 80sim (BIOS)
+#include "decoder.h"        // op code decoding used for monitor-based disassembler
 #include "monitor.h"        // abort monitor routines
 
 
@@ -361,12 +368,12 @@ void reset() {      // reset the processor
 }
 
 
-/*  The LOAD button allows the user to load an ascii file (*.bin) to the controllers
+/*  The LOAD button allows the user to load an ascii file (*.com) to the controllers
  *  RAM memory. The start address will be 0x0000. The file must be uploaded via the 
  *  console serial port. I use minicom under linux. The upload command is ascii-xfr
  *  and must be configured as: 
  *      ascii      /usr/bin/ascii-xfr -snv         Y    U    N       Y       N
- *  Make sure if you use something different that is transparently sends ascii chars
+ *  Make sure if you use something different that it transparently sends ascii chars
  *  without adding chars.
  *  Pressing the LOAD button will start the load process. You then upload the .com
  *  file. When the upload is complete press the LOAD button again. You will be returned
@@ -433,12 +440,12 @@ void setup() {
     pinMode(ATTNLED, OUTPUT);
     digitalWrite(ATTNLED, 0);       // initial state=off
     pinMode(LOADPIN, INPUT_PULLUP);
-    pinMode(LINE31,INPUT);          // input line 0x13
+    pinMode(LINE31,INPUT);          // input line 0x13 (see drivers.h)
     pinMode(LINE32,INPUT);          // input line 0x12
     pinMode(LINE33,OUTPUT);         // output line 0x14
-    digitalWrite(LINE33,0);         // initial output value = 1
+    digitalWrite(LINE33,0);         
     pinMode(LINE34,OUTPUT);         // output line 0x15
-    digitalWrite(LINE34,0);         // initial output value = 1
+    digitalWrite(LINE34,0);         
 
 
     /* initialize built-in SD card */
@@ -570,7 +577,10 @@ void loop() {
         /* test if RESET button pressed */
         if (digitalRead(RESETPIN)==0) {     // reset pressed
             reset();
-            while (digitalRead(RESETPIN)==0) continue; // wait until released
+            while (digitalRead(RESETPIN)==0) {
+                delay(DEBOUNCE);
+                continue; // wait until released
+            }
             delay(DEBOUNCE);
             continue;
         }
@@ -582,7 +592,10 @@ void loop() {
             digitalWrite(HALTLED,1);
             Console.println("\r\nABORT button pressed");
             abortRun();                       // jump to the monitor program
-            while (digitalRead(ABORTPIN)==0) continue;    // wait until released
+            while (digitalRead(ABORTPIN)==0) {
+                delay(DEBOUNCE);
+                continue;    // wait until released
+            }
             delay(DEBOUNCE);
             digitalWrite(HALTLED,0);
             continue;
@@ -601,7 +614,7 @@ void loop() {
         if (digitalRead(LOADPIN)==0) {          // load file from remote device
             digitalWrite(RUNLED,0);
             digitalWrite(HALTLED,1);
-            Console.print("Loading File");
+            Console.print("Loading from Console serial port");
             while (digitalRead(LOADPIN)==0) {
                 delay(DEBOUNCE);
                 continue;
@@ -610,7 +623,6 @@ void loop() {
             loadFromSerial();
             if (Console.available())
                 while (Console.available()) continue;   // flush buffer
-            digitalWrite(RUNLED,1);
             digitalWrite(HALTLED,0);
             reset();
             continue;
